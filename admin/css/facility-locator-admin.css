@@ -1,0 +1,168 @@
+/**
+ * Admin-specific CSS for the plugin
+ */
+
+/* General */
+.wp-list-table .column-name {
+  width: 25%;
+}
+
+.wp-list-table .column-address {
+  width: 40%;
+}
+
+.wp-list-table .column-categories {
+  width: 20%;
+}
+
+.wp-list-table .column-actions {
+  width: 15%;
+}
+
+/* Form Styles */
+.facility-levels-container,
+.facility-features-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.facility-levels-container label,
+.facility-features-container label {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  margin-right: 0;
+}
+
+.add-new-level,
+.add-new-feature {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.add-new-level input,
+.add-new-feature input {
+  margin-right: 10px;
+}
+
+.hours-select {
+  width: 100px;
+}
+
+#facility-map {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  height: 300px;
+  background-color: #f9f9f9;
+  position: relative;
+}
+
+#facility-map div {
+  font-family: inherit !important;
+}
+
+/* Loading state for map */
+#facility-map:before {
+  content: 'Loading map...';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #666;
+  z-index: 1;
+}
+
+/* Hide loading text when map is loaded */
+#facility-map.gm-style:before {
+  display: none;
+}
+
+/* Settings Page */
+.form-step {
+  padding: 15px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.step-field {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
+.field-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.option-value {
+  width: 80px;
+  margin-right: 10px;
+}
+
+.option-label {
+  margin-right: 10px;
+}
+
+.field-options {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+}
+
+/* Modal */
+.facility-locator-modal {
+  position: fixed;
+  z-index: 100000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.facility-locator-modal-content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #ddd;
+  width: 400px;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.facility-locator-modal-footer {
+  text-align: right;
+  margin-top: 20px;
+}
+
+.facility-locator-modal-footer button {
+  margin-left: 10px;
+}
+
+/* Error Styles */
+.error input,
+.error select {
+  border-color: #d63638 !important;
+}
+
+.error-message {
+  color: #d63638;
+  font-size: 12px;
+  margin-top: 5px;
+}

@@ -144,11 +144,15 @@ foreach ($all_taxonomies as $type => $taxonomy) {
                     <div class="postbox">
                         <h2 class="hndle">Categories & Features</h2>
                         <div class="inside">
-                            <table class="form-table">
-                                <?php foreach ($all_taxonomies as $type => $taxonomy) : ?>
-                                    <?php $items = $taxonomy->get_all(); ?>
-                                    <tr>
+                            <table class="form-table facility-taxonomy-table">
+                                <tr>
+                                    <?php foreach ($all_taxonomies as $type => $taxonomy) : ?>
                                         <th scope="row"><label><?php echo esc_html($taxonomy->get_display_name()); ?></label></th>
+                                    <?php endforeach; ?>
+                                </tr>
+                                <tr>
+                                    <?php foreach ($all_taxonomies as $type => $taxonomy) : ?>
+                                        <?php $items = $taxonomy->get_all(); ?>
                                         <td>
                                             <?php if (!empty($items)) : ?>
                                                 <div class="facility-taxonomy-container facility-<?php echo esc_attr($type); ?>-container">
@@ -166,8 +170,8 @@ foreach ($all_taxonomies as $type => $taxonomy) {
                                                 <p>No <?php echo esc_html(strtolower($taxonomy->get_display_name())); ?> available. <a href="<?php echo admin_url('admin.php?page=facility-locator-' . str_replace('_', '-', $type) . '&action=add'); ?>" target="_blank">Add <?php echo esc_html(strtolower($taxonomy->get_display_name())); ?></a> first.</p>
                                             <?php endif; ?>
                                         </td>
-                                    </tr>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </tr>
                             </table>
                         </div>
                     </div>

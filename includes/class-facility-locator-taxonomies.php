@@ -204,13 +204,23 @@ abstract class Facility_Locator_Base_Taxonomy
         global $wpdb;
         $facilities_table = $wpdb->prefix . 'facility_locator_facilities';
 
-        $count = $wpdb->get_var($wpdb->prepare("
-            SELECT COUNT(*) 
-            FROM {$facilities_table} 
-            WHERE taxonomies LIKE %s
-        ", '%"' . $this->taxonomy_type . '"%' . $id . '%'));
+        // Get all facilities and decode their taxonomies JSON
+        $facilities = $wpdb->get_results("SELECT taxonomies FROM {$facilities_table} WHERE taxonomies IS NOT NULL AND taxonomies != ''");
 
-        return intval($count);
+        $count = 0;
+        foreach ($facilities as $facility) {
+            $taxonomies = json_decode($facility->taxonomies, true);
+            if (
+                is_array($taxonomies) &&
+                isset($taxonomies[$this->taxonomy_type]) &&
+                is_array($taxonomies[$this->taxonomy_type]) &&
+                in_array($id, $taxonomies[$this->taxonomy_type])
+            ) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**
@@ -400,7 +410,7 @@ class Facility_Locator_Taxonomy_Manager
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'facility_locator_taxonomies';
-        
+
         $id_placeholders = implode(',', array_fill(0, count($ids), '%d'));
         $query = $wpdb->prepare(
             "SELECT * FROM {$table_name} WHERE taxonomy_type = %s AND id IN ({$id_placeholders}) ORDER BY name ASC",

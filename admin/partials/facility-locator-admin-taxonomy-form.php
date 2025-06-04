@@ -21,7 +21,7 @@ $item_data = array(
 
 <div class="wrap">
     <h1 class="wp-heading-inline"><?php echo esc_html($page_title); ?></h1>
-    <a href="<?php echo admin_url('admin.php?page=' . str_replace('&action=add', '', str_replace('&action=edit&id=' . $item_data['id'], '', $_SERVER['REQUEST_URI']))); ?>" class="page-title-action">Back to <?php echo esc_html($taxonomy->get_display_name()); ?></a>
+    <a href="<?php echo admin_url('admin.php?page=' . $_GET['page']); ?>" class="page-title-action">Back to <?php echo esc_html($taxonomy->get_display_name()); ?></a>
     <hr class="wp-header-end">
 
     <form id="taxonomy-form" method="post">
@@ -119,11 +119,9 @@ $item_data = array(
                 contentType: false,
                 success: function(response) {
                     if (response.success) {
-                        // Show success message
-                        alert('<?php echo esc_js($taxonomy->get_display_name()); ?> saved successfully!');
-
                         // Redirect to list
-                        window.location.href = '<?php echo admin_url('admin.php?page=' . str_replace('&action=add', '', str_replace('&action=edit&id=' . $item_data['id'], '', $_SERVER['REQUEST_URI']))); ?>&saved=true';
+                        var currentPage = '<?php echo esc_js($_GET['page']); ?>';
+                        window.location.href = 'admin.php?page=' + currentPage + '&saved=true';
                     } else {
                         // Show error message
                         alert('Error: ' + (response.data || 'Unknown error occurred'));

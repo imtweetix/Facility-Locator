@@ -1,11 +1,11 @@
 /**
- * Admin-specific JavaScript for the plugin
+ * Admin-specific JavaScript for the plugin - Updated with jQuery and ES6
  */
 (function ($) {
   'use strict';
 
   // Initialize the admin functionality
-  function init() {
+  const init = () => {
     // Facility form handling
     if ($('#facility-form').length) {
       initFacilityForm();
@@ -15,16 +15,16 @@
     if ($('.wp-list-table').length) {
       initFacilityList();
     }
-  }
+  };
 
   /**
    * Initialize facility form
    */
-  function initFacilityForm() {
+  const initFacilityForm = () => {
     const $form = $('#facility-form');
 
     // Form submission
-    $form.on('submit', function (e) {
+    $form.on('submit', (e) => {
       e.preventDefault();
 
       console.log('Facility Locator: Form submission started');
@@ -41,14 +41,14 @@
       $submitBtn.prev('.spinner').addClass('is-active');
 
       // Collect form data
-      const formData = new FormData(this);
+      const formData = new FormData(e.target);
       formData.append('action', 'save_facility');
       formData.append('nonce', facilityLocator.nonce);
 
       // Debug: Log form data
       console.log('Facility Locator: Form data being sent:');
-      for (let [key, value] of formData.entries()) {
-        console.log(key + ': ' + value);
+      for (const [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
       }
 
       // Send AJAX request
@@ -58,34 +58,31 @@
         data: formData,
         processData: false,
         contentType: false,
-        success: function (response) {
+        success: (response) => {
           console.log('Facility Locator: AJAX response:', response);
 
           if (response.success) {
-            // Show success message
-            alert('Facility saved successfully!');
-
             // Redirect to facilities list
             window.location.href = 'admin.php?page=facility-locator&saved=true';
           } else {
             // Show error message
-            alert('Error: ' + (response.data || 'Unknown error occurred'));
+            alert(`Error: ${response.data || 'Unknown error occurred'}`);
 
             // Enable submit button and hide spinner
             $submitBtn.prop('disabled', false);
             $submitBtn.prev('.spinner').removeClass('is-active');
           }
         },
-        error: function (xhr, status, error) {
+        error: (xhr, status, error) => {
           console.error('Facility Locator: AJAX error:', {
-            xhr: xhr,
-            status: status,
-            error: error,
+            xhr,
+            status,
+            error,
             responseText: xhr.responseText,
           });
 
           // Show error message
-          alert('AJAX error: ' + error + '\nResponse: ' + xhr.responseText);
+          alert(`AJAX error: ${error}\nResponse: ${xhr.responseText}`);
 
           // Enable submit button and hide spinner
           $submitBtn.prop('disabled', false);
@@ -95,7 +92,7 @@
     });
 
     // Add new level of care
-    $('#add-level-btn').on('click', function () {
+    $('#add-level-btn').on('click', () => {
       console.log('Add level button clicked');
       const $newLevelInput = $('#new-level');
       const newLevel = $newLevelInput.val().trim();
@@ -128,7 +125,7 @@
               .prop('checked', true)
           );
 
-          $levelLabel.append(' ' + newLevel);
+          $levelLabel.append(` ${newLevel}`);
 
           // Add to container before the add new field
           $levelLabel.insertBefore('.add-new-level');
@@ -146,7 +143,7 @@
     });
 
     // Add new program feature
-    $('#add-feature-btn').on('click', function () {
+    $('#add-feature-btn').on('click', () => {
       console.log('Add feature button clicked');
       const $newFeatureInput = $('#new-feature');
       const newFeature = $newFeatureInput.val().trim();
@@ -179,7 +176,7 @@
               .prop('checked', true)
           );
 
-          $featureLabel.append(' ' + newFeature);
+          $featureLabel.append(` ${newFeature}`);
 
           // Add to container before the add new field
           $featureLabel.insertBefore('.add-new-feature');
@@ -197,9 +194,9 @@
     });
 
     // Custom pin image upload functionality
-    var customUploader;
+    let customUploader;
 
-    $('#upload-pin-button').click(function (e) {
+    $('#upload-pin-button').on('click', (e) => {
       e.preventDefault();
 
       console.log('Upload pin button clicked');
@@ -229,8 +226,8 @@
       });
 
       // When an image is selected in the media frame...
-      customUploader.on('select', function () {
-        var attachment = customUploader.state().get('selection').first().toJSON();
+      customUploader.on('select', () => {
+        const attachment = customUploader.state().get('selection').first().toJSON();
 
         console.log('Image selected:', attachment);
 
@@ -239,9 +236,7 @@
 
         // Update preview
         $('#custom-pin-preview').html(
-          '<img src="' +
-            attachment.url +
-            '" style="max-width: 50px; max-height: 50px; display: block; margin-bottom: 5px;">'
+          `<img src="${attachment.url}" style="max-width: 50px; max-height: 50px; display: block; margin-bottom: 5px;">`
         );
 
         // Show remove button
@@ -252,7 +247,7 @@
       customUploader.open();
     });
 
-    $('#remove-pin-button').click(function (e) {
+    $('#remove-pin-button').on('click', (e) => {
       e.preventDefault();
 
       // Clear hidden field
@@ -262,14 +257,14 @@
       $('#custom-pin-preview').empty();
 
       // Hide remove button
-      $(this).hide();
+      $(e.target).hide();
     });
-  }
+  };
 
   /**
    * Validate facility form
    */
-  function validateForm($form) {
+  const validateForm = ($form) => {
     let valid = true;
 
     // Check required fields
@@ -318,12 +313,12 @@
     }
 
     return valid;
-  }
+  };
 
   /**
    * Initialize facility list
    */
-  function initFacilityList() {
+  const initFacilityList = () => {
     // Search functionality
     $('#facility-search').on('keyup', function () {
       const searchText = $(this).val().toLowerCase();
@@ -354,7 +349,7 @@
     });
 
     // Cancel delete
-    $('#cancel-delete').on('click', function () {
+    $('#cancel-delete').on('click', () => {
       $('#delete-facility-modal').hide();
     });
 
@@ -376,10 +371,10 @@
           nonce: facilityLocator.nonce,
           id: id,
         },
-        success: function (response) {
+        success: (response) => {
           if (response.success) {
             // Remove table row
-            $('tr[data-id="' + id + '"]').fadeOut(300, function () {
+            $(`tr[data-id="${id}"]`).fadeOut(300, function () {
               $(this).remove();
 
               // Check if table is empty
@@ -394,15 +389,15 @@
             $modal.hide();
           } else {
             // Show error message
-            alert('Error: ' + response.data);
+            alert(`Error: ${response.data}`);
 
             // Reset button
             $confirmBtn.prop('disabled', false).text('Delete');
           }
         },
-        error: function (xhr, status, error) {
+        error: (xhr, status, error) => {
           // Show error message
-          alert('AJAX error: ' + error);
+          alert(`AJAX error: ${error}`);
 
           // Reset button
           $confirmBtn.prop('disabled', false).text('Delete');
@@ -411,7 +406,7 @@
     });
 
     // Close modal when clicking outside
-    $(window).on('click', function (e) {
+    $(window).on('click', (e) => {
       const $modal = $('#delete-facility-modal');
 
       if ($(e.target).is($modal)) {
@@ -427,7 +422,7 @@
       $('.wrap h1.wp-heading-inline').after($notice);
 
       // Remove notice after 3 seconds
-      setTimeout(function () {
+      setTimeout(() => {
         $notice.fadeOut(300, function () {
           $(this).remove();
         });
@@ -440,7 +435,7 @@
         .replace('?saved=true', '');
       window.history.replaceState({}, document.title, url);
     }
-  }
+  };
 
   // Initialize when document is ready
   $(document).ready(init);

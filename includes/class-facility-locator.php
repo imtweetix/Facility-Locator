@@ -1,11 +1,10 @@
 <?php
 
 /**
- * The core plugin class
+ * The core plugin class with taxonomy system
  */
 class Facility_Locator
 {
-
     protected $loader;
     protected $plugin_name;
     protected $version;
@@ -23,13 +22,11 @@ class Facility_Locator
     private function load_dependencies()
     {
         require_once FACILITY_LOCATOR_PATH . 'includes/class-facility-locator-loader.php';
+        require_once FACILITY_LOCATOR_PATH . 'includes/class-facility-locator-taxonomies.php';
         require_once FACILITY_LOCATOR_PATH . 'includes/class-facility-locator-facilities.php';
-        require_once FACILITY_LOCATOR_PATH . 'includes/class-facility-locator-levels-of-care.php';
-        require_once FACILITY_LOCATOR_PATH . 'includes/class-facility-locator-program-features.php';
         require_once FACILITY_LOCATOR_PATH . 'includes/class-facility-locator-template-loader.php';
         require_once FACILITY_LOCATOR_PATH . 'admin/class-facility-locator-admin.php';
         require_once FACILITY_LOCATOR_PATH . 'public/class-facility-locator-public.php';
-        require_once FACILITY_LOCATOR_PATH . 'includes/class-facility-locator-taxonomies.php';
 
         $this->loader = new Facility_Locator_Loader();
     }
@@ -47,13 +44,14 @@ class Facility_Locator
         $this->loader->add_action('wp_ajax_save_facility', $plugin_admin, 'ajax_save_facility');
         $this->loader->add_action('wp_ajax_delete_facility', $plugin_admin, 'ajax_delete_facility');
 
-        // Level of Care AJAX actions
-        $this->loader->add_action('wp_ajax_save_level_of_care', $plugin_admin, 'ajax_save_level_of_care');
-        $this->loader->add_action('wp_ajax_delete_level_of_care', $plugin_admin, 'ajax_delete_level_of_care');
+        // Taxonomy AJAX actions - dynamically register for all taxonomy types
+        $taxonomy_manager = new Facility_Locator_Taxonomy_Manager();
+        $taxonomy_types = $taxonomy_manager->get_taxonomy_types();
 
-        // Program Feature AJAX actions
-        $this->loader->add_action('wp_ajax_save_program_feature', $plugin_admin, 'ajax_save_program_feature');
-        $this->loader->add_action('wp_ajax_delete_program_feature', $plugin_admin, 'ajax_delete_program_feature');
+        foreach ($taxonomy_types as $type) {
+            $this->loader->add_action('wp_ajax_save_taxonomy_' . $type, $plugin_admin, 'ajax_save_taxonomy');
+            $this->loader->add_action('wp_ajax_delete_taxonomy_' . $type, $plugin_admin, 'ajax_delete_taxonomy');
+        }
     }
 
     private function define_public_hooks()

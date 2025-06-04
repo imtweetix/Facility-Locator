@@ -18,12 +18,25 @@ delete_option('facility_locator_map_zoom');
 delete_option('facility_locator_map_height');
 delete_option('facility_locator_cta_text');
 delete_option('facility_locator_cta_color');
-delete_option('facility_locator_default_pin');
+delete_option('facility_locator_default_pin_image');
+delete_option('facility_locator_form_steps');
 
-// Drop custom database table
+// Drop custom database tables
 global $wpdb;
-$table_name = $wpdb->prefix . 'facility_locator_facilities';
-$wpdb->query("DROP TABLE IF EXISTS $table_name");
+
+// Drop facilities table
+$facilities_table = $wpdb->prefix . 'facility_locator_facilities';
+$wpdb->query("DROP TABLE IF EXISTS $facilities_table");
+
+// Drop new unified taxonomies table
+$taxonomies_table = $wpdb->prefix . 'facility_locator_taxonomies';
+$wpdb->query("DROP TABLE IF EXISTS $taxonomies_table");
+
+// Drop old taxonomy tables if they exist (for cleanup from previous versions)
+$old_levels_table = $wpdb->prefix . 'facility_locator_levels_of_care';
+$old_features_table = $wpdb->prefix . 'facility_locator_program_features';
+$wpdb->query("DROP TABLE IF EXISTS $old_levels_table");
+$wpdb->query("DROP TABLE IF EXISTS $old_features_table");
 
 // Remove uploaded pin files
 $upload_dir = wp_upload_dir();

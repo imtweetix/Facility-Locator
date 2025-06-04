@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Form for adding/editing a facility
+ * Form for adding/editing a facility with all taxonomies
  */
 
 $is_edit = $facility !== null;
@@ -11,50 +11,9 @@ $page_title = $is_edit ? 'Edit Facility' : 'Add New Facility';
 $api_key = get_option('facility_locator_google_maps_api_key', '');
 $has_api_key = !empty($api_key);
 
-// Get levels of care and program features from managed lists
-$all_levels_of_care = $this->levels_of_care->get_all();
-$all_program_features = $this->program_features->get_all();
-
-// Convert current facility data from old format to new ID-based format if needed
-$selected_levels = array();
-$selected_features = array();
-
-if ($is_edit) {
-    // Handle both old name-based and new ID-based formats
-    if (is_array($facility->levels_of_care)) {
-        foreach ($facility->levels_of_care as $level_item) {
-            if (is_numeric($level_item)) {
-                // Already ID-based
-                $selected_levels[] = $level_item;
-            } else {
-                // Name-based, convert to ID
-                foreach ($all_levels_of_care as $level) {
-                    if ($level->name === $level_item) {
-                        $selected_levels[] = $level->id;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    if (is_array($facility->program_features)) {
-        foreach ($facility->program_features as $feature_item) {
-            if (is_numeric($feature_item)) {
-                // Already ID-based
-                $selected_features[] = $feature_item;
-            } else {
-                // Name-based, convert to ID
-                foreach ($all_program_features as $feature) {
-                    if ($feature->name === $feature_item) {
-                        $selected_features[] = $feature->id;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
+// Get all taxonomies
+$taxonomy_manager = new Facility_Locator_Taxonomy_Manager();
+$all_taxonomies = $taxonomy_manager->get_all_taxonomies();
 
 // Default values
 $facility_data = array(
@@ -66,10 +25,13 @@ $facility_data = array(
     'phone' => $is_edit ? $facility->phone : '',
     'website' => $is_edit ? $facility->website : '',
     'custom_pin_image' => $is_edit ? $facility->custom_pin_image : '',
-    'levels_of_care' => $selected_levels,
-    'program_features' => $selected_features,
     'description' => $is_edit ? $facility->description : '',
 );
+
+// Add taxonomy data
+foreach ($all_taxonomies as $type => $taxonomy) {
+    $facility_data[$type] = $is_edit ? $facility->{$type} : array();
+}
 ?>
 
 <div class="wrap">
@@ -178,44 +140,34 @@ $facility_data = array(
                         </div>
                     </div>
 
+                    <!-- Taxonomies Section -->
                     <div class="postbox">
-                        <h2 class="hndle">Levels of Care & Program Features</h2>
+                        <h2 class="hndle">Categories & Features</h2>
                         <div class="inside">
                             <table class="form-table">
-                                <tr>
-                                    <th scope="row"><label>Levels of Care</label></th>
-                                    <td>
-                                        <?php if (!empty($all_levels_of_care)) : ?>
-                                            <div class="facility-levels-container">
-                                                <?php foreach ($all_levels_of_care as $level) : ?>
-                                                    <label>
-                                                        <input type="checkbox" name="levels_of_care[]" value="<?php echo esc_attr($level->id); ?>" <?php checked(in_array($level->id, $facility_data['levels_of_care'])); ?>>
-                                                        <?php echo esc_html($level->name); ?>
-                                                    </label>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php else : ?>
-                                            <p>No levels of care available. <a href="<?php echo admin_url('admin.php?page=facility-locator-levels-of-care&action=add'); ?>" target="_blank">Add levels of care</a> first.</p>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th scope="row"><label>Program Features</label></th>
-                                    <td>
-                                        <?php if (!empty($all_program_features)) : ?>
-                                            <div class="facility-features-container">
-                                                <?php foreach ($all_program_features as $feature) : ?>
-                                                    <label>
-                                                        <input type="checkbox" name="program_features[]" value="<?php echo esc_attr($feature->id); ?>" <?php checked(in_array($feature->id, $facility_data['program_features'])); ?>>
-                                                        <?php echo esc_html($feature->name); ?>
-                                                    </label>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php else : ?>
-                                            <p>No program features available. <a href="<?php echo admin_url('admin.php?page=facility-locator-program-features&action=add'); ?>" target="_blank">Add program features</a> first.</p>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
+                                <?php foreach ($all_taxonomies as $type => $taxonomy) : ?>
+                                    <?php $items = $taxonomy->get_all(); ?>
+                                    <tr>
+                                        <th scope="row"><label><?php echo esc_html($taxonomy->get_display_name()); ?></label></th>
+                                        <td>
+                                            <?php if (!empty($items)) : ?>
+                                                <div class="facility-taxonomy-container facility-<?php echo esc_attr($type); ?>-container">
+                                                    <?php foreach ($items as $item) : ?>
+                                                        <label>
+                                                            <input type="checkbox"
+                                                                name="<?php echo esc_attr($type); ?>[]"
+                                                                value="<?php echo esc_attr($item->id); ?>"
+                                                                <?php checked(in_array($item->id, $facility_data[$type])); ?>>
+                                                            <?php echo esc_html($item->name); ?>
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php else : ?>
+                                                <p>No <?php echo esc_html(strtolower($taxonomy->get_display_name())); ?> available. <a href="<?php echo admin_url('admin.php?page=facility-locator-' . str_replace('_', '-', $type) . '&action=add'); ?>" target="_blank">Add <?php echo esc_html(strtolower($taxonomy->get_display_name())); ?></a> first.</p>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
                             </table>
                         </div>
                     </div>
@@ -240,8 +192,9 @@ $facility_data = array(
     </form>
 </div>
 
+<!-- Map JavaScript remains the same -->
 <script>
-    // Define the callback function in global scope IMMEDIATELY
+    // Map initialization code (same as before)
     window.initFacilityMap = function() {
         if (window.facilityMapInitialized) {
             console.log('Map already initialized, skipping...');
@@ -284,7 +237,6 @@ $facility_data = array(
                 title: 'Drag to adjust location'
             });
 
-            // Add drag end listener
             google.maps.event.addListener(window.facilityMarker, 'dragend', function(event) {
                 console.log('Marker dragged to:', event.latLng.lat(), event.latLng.lng());
 
@@ -294,13 +246,11 @@ $facility_data = array(
                 if (latInput) latInput.value = event.latLng.lat();
                 if (lngInput) lngInput.value = event.latLng.lng();
 
-                // Update manual input fields too
                 var manualLatInput = document.getElementById('manual-lat');
                 var manualLngInput = document.getElementById('manual-lng');
                 if (manualLatInput) manualLatInput.value = event.latLng.lat();
                 if (manualLngInput) manualLngInput.value = event.latLng.lng();
 
-                // Get address from coordinates
                 window.geocoder.geocode({
                     'location': event.latLng
                 }, function(results, status) {
@@ -314,13 +264,9 @@ $facility_data = array(
                 });
             });
 
-            // Setup address autocomplete
             window.setupAddressAutocomplete();
-
             window.facilityMapInitialized = true;
             console.log('Map initialized successfully via callback');
-
-            // Remove loading message
             mapElement.classList.add('gm-style');
 
         } catch (error) {
@@ -370,17 +316,14 @@ $facility_data = array(
         }
     };
 
-    // Initialize global variables
     window.facilityMap = null;
     window.facilityMarker = null;
     window.geocoder = null;
     window.facilityMapInitialized = false;
 
-    // Fallback initialization
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOM loaded, setting up fallback initialization...');
 
-        // Wait a bit for Google Maps to potentially call the callback
         setTimeout(function() {
             if (!window.facilityMapInitialized && typeof google !== 'undefined' && google.maps) {
                 console.log('Google Maps loaded but callback not called, initializing manually...');
@@ -388,7 +331,6 @@ $facility_data = array(
             } else if (!window.facilityMapInitialized) {
                 console.log('Google Maps not loaded, waiting...');
 
-                // Keep checking for Google Maps
                 var checkInterval = setInterval(function() {
                     if (typeof google !== 'undefined' && google.maps && !window.facilityMapInitialized) {
                         console.log('Google Maps finally loaded, initializing...');
@@ -397,7 +339,6 @@ $facility_data = array(
                     }
                 }, 500);
 
-                // Give up after 15 seconds
                 setTimeout(function() {
                     if (!window.facilityMapInitialized) {
                         console.error('Google Maps failed to load within 15 seconds');
@@ -413,7 +354,6 @@ $facility_data = array(
         }, 1000);
     });
 
-    // Manual coordinate input handlers
     function updateCoordinatesFromManual() {
         var manualLat = document.getElementById('manual-lat');
         var manualLng = document.getElementById('manual-lng');
@@ -428,7 +368,6 @@ $facility_data = array(
             facilityLng.value = manualLng.value;
         }
 
-        // Update map if available
         if (window.facilityMap && window.facilityMarker && manualLat.value && manualLng.value) {
             var newPos = {
                 lat: parseFloat(manualLat.value),
@@ -442,7 +381,6 @@ $facility_data = array(
         }
     }
 
-    // Set existing coordinates in manual fields on page load
     document.addEventListener('DOMContentLoaded', function() {
         var facilityLat = document.getElementById('facility-lat');
         var facilityLng = document.getElementById('facility-lng');

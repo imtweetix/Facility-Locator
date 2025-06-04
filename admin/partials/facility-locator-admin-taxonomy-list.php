@@ -1,17 +1,20 @@
 <?php
 /**
- * Admin view for displaying all levels of care
+ * Generic admin view for displaying taxonomy items
+ * 
+ * @var object $taxonomy The taxonomy object
+ * @var array $items List of taxonomy items
  */
 ?>
 
 <div class="wrap">
-    <h1 class="wp-heading-inline">Levels of Care</h1>
-    <a href="<?php echo admin_url('admin.php?page=facility-locator-levels-of-care&action=add'); ?>" class="page-title-action">Add New</a>
+    <h1 class="wp-heading-inline"><?php echo esc_html($taxonomy->get_display_name()); ?></h1>
+    <a href="<?php echo admin_url('admin.php?page=' . $_GET['page'] . '&action=add'); ?>" class="page-title-action">Add New</a>
     <hr class="wp-header-end">
 
     <div class="tablenav top">
         <div class="alignleft actions">
-            <input type="text" id="level-search" class="regular-text" placeholder="Search levels of care...">
+            <input type="text" id="taxonomy-search" class="regular-text" placeholder="Search <?php echo esc_attr(strtolower($taxonomy->get_display_name())); ?>...">
         </div>
     </div>
     
@@ -25,33 +28,36 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($levels)) : ?>
+            <?php if (empty($items)) : ?>
                 <tr>
-                    <td colspan="4">No levels of care found. <a href="<?php echo admin_url('admin.php?page=facility-locator-levels-of-care&action=add'); ?>">Add your first level of care</a>.</td>
+                    <td colspan="4">No <?php echo esc_html(strtolower($taxonomy->get_display_name())); ?> found. <a href="<?php echo admin_url('admin.php?page=' . $_GET['page'] . '&action=add'); ?>">Add your first <?php echo esc_html(strtolower($taxonomy->get_display_name())); ?></a>.</td>
                 </tr>
             <?php else : ?>
-                <?php foreach ($levels as $level) : ?>
-                    <tr data-id="<?php echo esc_attr($level->id); ?>">
+                <?php foreach ($items as $item) : ?>
+                    <tr data-id="<?php echo esc_attr($item->id); ?>">
                         <td>
                             <strong>
-                                <a href="<?php echo admin_url('admin.php?page=facility-locator-levels-of-care&action=edit&id=' . $level->id); ?>">
-                                    <?php echo esc_html($level->name); ?>
+                                <a href="<?php echo admin_url('admin.php?page=' . $_GET['page'] . '&action=edit&id=' . $item->id); ?>">
+                                    <?php echo esc_html($item->name); ?>
                                 </a>
                             </strong>
-                            <?php if (!empty($level->description)) : ?>
-                                <br><span class="description"><?php echo esc_html($level->description); ?></span>
+                            <?php if (!empty($item->description)) : ?>
+                                <br><span class="description"><?php echo esc_html($item->description); ?></span>
                             <?php endif; ?>
                         </td>
-                        <td><code><?php echo esc_html($level->slug); ?></code></td>
+                        <td><code><?php echo esc_html($item->slug); ?></code></td>
                         <td>
                             <?php 
-                            $usage_count = $this->levels_of_care->get_usage_count($level->id);
+                            $usage_count = $taxonomy->get_usage_count($item->id);
                             echo $usage_count;
                             ?>
                         </td>
                         <td>
-                            <a href="<?php echo admin_url('admin.php?page=facility-locator-levels-of-care&action=edit&id=' . $level->id); ?>" class="button button-small">Edit</a>
-                            <button type="button" class="button button-small delete-level" data-id="<?php echo esc_attr($level->id); ?>" data-name="<?php echo esc_attr($level->name); ?>">Delete</button>
+                            <a href="<?php echo admin_url('admin.php?page=' . $_GET['page'] . '&action=edit&id=' . $item->id); ?>" class="button button-small">Edit</a>
+                            <button type="button" class="button button-small delete-taxonomy-item" 
+                                    data-id="<?php echo esc_attr($item->id); ?>" 
+                                    data-name="<?php echo esc_attr($item->name); ?>"
+                                    data-taxonomy-type="<?php echo esc_attr($taxonomy->get_taxonomy_type()); ?>">Delete</button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -60,13 +66,13 @@
     </table>
 </div>
 
-<div id="delete-level-modal" class="facility-locator-modal" style="display:none;">
+<div id="delete-taxonomy-modal" class="facility-locator-modal" style="display:none;">
     <div class="facility-locator-modal-content">
-        <h3>Delete Level of Care</h3>
-        <p>Are you sure you want to delete "<span id="delete-level-name"></span>"? This action cannot be undone.</p>
+        <h3>Delete <?php echo esc_html($taxonomy->get_display_name()); ?></h3>
+        <p>Are you sure you want to delete "<span id="delete-taxonomy-name"></span>"? This action cannot be undone.</p>
         <div class="facility-locator-modal-footer">
-            <button type="button" class="button" id="cancel-delete-level">Cancel</button>
-            <button type="button" class="button button-primary" id="confirm-delete-level">Delete</button>
+            <button type="button" class="button" id="cancel-delete-taxonomy">Cancel</button>
+            <button type="button" class="button button-primary" id="confirm-delete-taxonomy">Delete</button>
         </div>
     </div>
 </div>
@@ -74,7 +80,7 @@
 <script>
 jQuery(document).ready(function($) {
     // Search functionality
-    $('#level-search').on('keyup', function() {
+    $('#taxonomy-search').on('keyup', function() {
         const searchText = $(this).val().toLowerCase();
         
         $('.wp-list-table tbody tr').each(function() {
@@ -89,29 +95,32 @@ jQuery(document).ready(function($) {
         });
     });
     
-    // Delete level
-    $('.delete-level').on('click', function() {
+    // Delete taxonomy item
+    $('.delete-taxonomy-item').on('click', function() {
         const id = $(this).data('id');
         const name = $(this).data('name');
-        const $modal = $('#delete-level-modal');
+        const taxonomyType = $(this).data('taxonomy-type');
+        const $modal = $('#delete-taxonomy-modal');
         
-        // Store level ID and name in the modal
+        // Store data in the modal
         $modal.data('id', id);
-        $('#delete-level-name').text(name);
+        $modal.data('taxonomy-type', taxonomyType);
+        $('#delete-taxonomy-name').text(name);
         
         // Show modal
         $modal.show();
     });
     
     // Cancel delete
-    $('#cancel-delete-level').on('click', function() {
-        $('#delete-level-modal').hide();
+    $('#cancel-delete-taxonomy').on('click', function() {
+        $('#delete-taxonomy-modal').hide();
     });
     
     // Confirm delete
-    $('#confirm-delete-level').on('click', function() {
-        const $modal = $('#delete-level-modal');
+    $('#confirm-delete-taxonomy').on('click', function() {
+        const $modal = $('#delete-taxonomy-modal');
         const id = $modal.data('id');
+        const taxonomyType = $modal.data('taxonomy-type');
         
         // Disable button and show loading state
         const $confirmBtn = $(this);
@@ -122,9 +131,10 @@ jQuery(document).ready(function($) {
             url: facilityLocator.ajaxUrl,
             type: 'POST',
             data: {
-                action: 'delete_level_of_care',
+                action: 'delete_taxonomy_' + taxonomyType,
                 nonce: facilityLocator.nonce,
-                id: id
+                id: id,
+                taxonomy_type: taxonomyType
             },
             success: function(response) {
                 if (response.success) {
@@ -134,7 +144,7 @@ jQuery(document).ready(function($) {
                         
                         // Check if table is empty
                         if ($('.wp-list-table tbody tr').length === 0) {
-                            $('.wp-list-table tbody').html('<tr><td colspan="4">No levels of care found. <a href="admin.php?page=facility-locator-levels-of-care&action=add">Add your first level of care</a>.</td></tr>');
+                            $('.wp-list-table tbody').html('<tr><td colspan="4">No <?php echo esc_js(strtolower($taxonomy->get_display_name())); ?> found. <a href="<?php echo admin_url('admin.php?page=' . $_GET['page'] . '&action=add'); ?>">Add your first <?php echo esc_js(strtolower($taxonomy->get_display_name())); ?></a>.</td></tr>');
                         }
                     });
                     
@@ -160,7 +170,7 @@ jQuery(document).ready(function($) {
     
     // Close modal when clicking outside
     $(window).on('click', function(e) {
-        const $modal = $('#delete-level-modal');
+        const $modal = $('#delete-taxonomy-modal');
         
         if ($(e.target).is($modal)) {
             $modal.hide();

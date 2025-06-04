@@ -1,20 +1,21 @@
 <?php
 
 /**
- * The public-facing functionality of the plugin
+ * The public-facing functionality with taxonomy support
  */
 class Facility_Locator_Public
 {
-
     private $plugin_name;
     private $version;
     private $facilities;
+    private $taxonomy_manager;
 
     public function __construct($plugin_name, $version)
     {
         $this->plugin_name = $plugin_name;
         $this->version = $version;
         $this->facilities = new Facility_Locator_Facilities();
+        $this->taxonomy_manager = new Facility_Locator_Taxonomy_Manager();
     }
 
     /**
@@ -38,6 +39,24 @@ class Facility_Locator_Public
             wp_enqueue_script('google-maps', "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=places", array(), null, true);
         }
 
+        // Get available taxonomies for form configuration
+        $available_taxonomies = array();
+        $all_taxonomies = $this->taxonomy_manager->get_all_taxonomies();
+
+        foreach ($all_taxonomies as $type => $taxonomy) {
+            $items = $taxonomy->get_all();
+            $available_taxonomies[$type] = array(
+                'label' => $taxonomy->get_display_name(),
+                'items' => array_map(function ($item) {
+                    return array(
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'slug' => $item->slug
+                    );
+                }, $items)
+            );
+        }
+
         // Localize script
         wp_localize_script($this->plugin_name, 'facilityLocator', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -49,6 +68,7 @@ class Facility_Locator_Public
                 'ctaColor' => get_option('facility_locator_cta_color', '#007bff'),
             ),
             'formSteps' => json_decode(get_option('facility_locator_form_steps', '[]')),
+            'availableTaxonomies' => $available_taxonomies,
         ));
     }
 
@@ -98,33 +118,26 @@ class Facility_Locator_Public
         // Get form data
         $form_data = isset($_POST['form_data']) ? $_POST['form_data'] : array();
 
-        // Extract filter criteria
+        // Extract filter criteria for all taxonomies
         $filter_criteria = array();
+        $taxonomy_types = $this->taxonomy_manager->get_taxonomy_types();
 
-        // Categories
-        if (isset($form_data['categories']) && is_array($form_data['categories'])) {
-            $filter_criteria['categories'] = array_map('sanitize_text_field', $form_data['categories']);
-        }
-
-        // Attributes
-        if (isset($form_data['attributes']) && is_array($form_data['attributes'])) {
-            $filter_criteria['attributes'] = array_map('sanitize_text_field', $form_data['attributes']);
+        foreach ($taxonomy_types as $type) {
+            if (isset($form_data[$type]) && is_array($form_data[$type])) {
+                $filter_criteria[$type] = array_map('sanitize_text_field', $form_data[$type]);
+            }
         }
 
         // Get facilities
         $facilities = $this->facilities->get_facilities($filter_criteria);
 
-        // Get all available categories and attributes for filter dropdowns
-        $all_categories = $this->facilities->get_categories();
-        $all_attributes = $this->facilities->get_attributes();
+        // Get all available taxonomy options for filter dropdowns
+        $all_taxonomies = $this->taxonomy_manager->get_all_for_filters();
 
         // Format response
         $response = array(
             'facilities' => $facilities,
-            'filters' => array(
-                'categories' => $all_categories,
-                'attributes' => $all_attributes,
-            ),
+            'filters' => $all_taxonomies,
         );
 
         // Send response

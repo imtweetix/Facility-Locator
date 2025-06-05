@@ -1,27 +1,33 @@
 /**
- * Public-facing JavaScript for the plugin - Updated with jQuery and ES6
+ * Enhanced Public-facing JavaScript for Recovery.com + Google Maps style interface
  */
 (function ($) {
   'use strict';
 
-  // Store map instances
+  // Store map instances and data
   const maps = {};
   const markers = {};
+  const markerClusterer = {};
   const infoWindows = {};
+  const facilitiesData = {};
+  const activeFilters = {};
+  let currentFacilityId = null;
 
   /**
    * Initialize the plugin
    */
   const init = () => {
-    // Initialize each facility locator container
     $('.facility-locator-container').each(function () {
       const $container = $(this);
       const id = $container.attr('id');
 
+      facilitiesData[id] = [];
+      activeFilters[id] = {};
+
       // Set up event listeners
       initEventListeners($container, id);
 
-      // Build form steps
+      // Build form steps for initial popup
       buildFormSteps($container, id);
     });
   };
@@ -31,7 +37,7 @@
    */
   const initEventListeners = ($container, id) => {
     const $ctaButton = $container.find('.facility-locator-cta-button');
-    const $popup = $(`#${$ctaButton.data('target')}`);
+    const $popup = $container.find('.facility-locator-popup');
     const $closeButton = $popup.find('.facility-locator-popup-close');
     const $form = $popup.find('form');
     const $nextBtn = $popup.find('.facility-locator-next-btn');
@@ -39,20 +45,18 @@
     const $submitBtn = $popup.find('.facility-locator-submit-btn');
     const $skipLink = $popup.find('.facility-locator-skip-link');
 
-    // Open popup when CTA button is clicked
+    // Initial popup interactions
     $ctaButton.on('click', (e) => {
       e.preventDefault();
       $popup.fadeIn(300);
       $('body').css('overflow', 'hidden');
     });
 
-    // Close popup
     $closeButton.on('click', () => {
       $popup.fadeOut(300);
       $('body').css('overflow', 'auto');
     });
 
-    // Close popup when clicking outside content
     $popup.on('click', (e) => {
       if ($(e.target).hasClass('facility-locator-popup')) {
         $popup.fadeOut(300);
@@ -60,82 +64,163 @@
       }
     });
 
-    // Next button
-    $nextBtn.on('click', () => {
-      navigateStep($container, 'next');
-    });
-
-    // Previous button
-    $prevBtn.on('click', () => {
-      navigateStep($container, 'prev');
-    });
-
-    // Form submission
+    // Form navigation
+    $nextBtn.on('click', () => navigateStep($container, 'next'));
+    $prevBtn.on('click', () => navigateStep($container, 'prev'));
     $form.on('submit', (e) => {
       e.preventDefault();
       submitForm($container, id);
     });
 
-    // Skip link
     $skipLink.on('click', (e) => {
       e.preventDefault();
       showAllFacilities($container, id);
     });
+
+    // Filter interactions
+    $(document).on('click', '.filter-dropdown-button', function (e) {
+      e.stopPropagation();
+      const $dropdown = $(this).closest('.filter-dropdown');
+      const isOpen = $dropdown.hasClass('open');
+
+      // Close all other dropdowns
+      $('.filter-dropdown').removeClass('open');
+
+      // Toggle current dropdown
+      if (!isOpen) {
+        $dropdown.addClass('open');
+      }
+    });
+
+    // Close dropdowns when clicking outside
+    $(document).on('click', (e) => {
+      if (!$(e.target).closest('.filter-dropdown').length) {
+        $('.filter-dropdown').removeClass('open');
+      }
+    });
+
+    // Filter option selection
+    $(document).on('change', '.filter-option input[type="checkbox"]', function () {
+      const $container = $(this).closest('.facility-locator-container');
+      const id = $container.attr('id');
+      updateFilters($container, id);
+    });
+
+    // Clear all filters
+    $(document).on('click', '.clear-all-filters', function () {
+      const $container = $(this).closest('.facility-locator-container');
+      const id = $container.attr('id');
+      clearAllFilters($container, id);
+    });
+
+    // Facility card interactions
+    $(document).on('click', '.facility-card', function () {
+      const facilityId = $(this).data('facility-id');
+      const $container = $(this).closest('.facility-locator-container');
+      const id = $container.attr('id');
+
+      // Highlight card
+      $('.facility-card').removeClass('highlighted');
+      $(this).addClass('highlighted');
+
+      // Highlight map pin and show details
+      highlightMapPin(id, facilityId);
+      showFacilityDetails($container, facilityId);
+    });
+
+    // Carousel navigation
+    $(document).on('click', '.carousel-prev', function (e) {
+      e.stopPropagation();
+      navigateCarousel($(this), -1);
+    });
+
+    $(document).on('click', '.carousel-next', function (e) {
+      e.stopPropagation();
+      navigateCarousel($(this), 1);
+    });
+
+    $(document).on('click', '.carousel-indicator', function (e) {
+      e.stopPropagation();
+      const index = $(this).data('index');
+      goToCarouselSlide($(this), index);
+    });
+
+    // Detailed modal interactions
+    $(document).on('click', '.facility-detail-close', function () {
+      const $modal = $(this).closest('.facility-detail-modal');
+      $modal.removeClass('open');
+      $('.facility-card').removeClass('highlighted');
+      clearHighlightedPin();
+    });
+
+    // Mobile interactions
+    initMobileEventListeners($container, id);
   };
 
   /**
-   * Build form steps based on settings
+   * Initialize mobile-specific event listeners
+   */
+  const initMobileEventListeners = ($container, id) => {
+    // Mobile filter trigger (will be added dynamically)
+    $(document).on('click', '.mobile-filter-trigger', function () {
+      $('.mobile-filter-drawer').addClass('open');
+    });
+
+    // Mobile filter drawer close
+    $(document).on('click', '.mobile-filter-close', function () {
+      $('.mobile-filter-drawer').removeClass('open');
+    });
+
+    // Apply mobile filters
+    $(document).on('click', '.apply-mobile-filters', function () {
+      $('.mobile-filter-drawer').removeClass('open');
+      const $container = $(this).closest('.facility-locator-container');
+      const id = $container.attr('id');
+      updateFilters($container, id);
+    });
+  };
+
+  /**
+   * Build form steps for initial popup
    */
   const buildFormSteps = ($container, id) => {
     const formSteps = facilityLocator.formSteps;
     const $stepsContainer = $container.find('.facility-locator-steps');
 
     if (!formSteps || formSteps.length === 0) {
-      // If no steps are configured, show a message and skip directly to map
-      console.log('No form steps configured, skipping form');
-
-      // Hide the form popup elements
-      const $popup = $container.find('.facility-locator-popup');
-
-      // Update CTA button to skip form entirely
       const $ctaButton = $container.find('.facility-locator-cta-button');
       $ctaButton.off('click').on('click', (e) => {
         e.preventDefault();
         showAllFacilities($container, id);
       });
-
       return;
     }
 
-    // Build each step
     formSteps.forEach((step, index) => {
       buildStep($stepsContainer, step, index);
     });
 
-    // Show the first step
     $container.find('.facility-locator-step').first().addClass('active');
-
-    // Update navigation buttons
     updateNavButtons($container);
   };
 
   /**
-   * Build a single step
+   * Build a single step with columns
    */
   const buildStep = ($stepsContainer, step, index) => {
     const $step = $('<div>').addClass('facility-locator-step').attr('data-step', index);
-
-    // Add step title
     $step.append($('<h2>').text(step.title));
 
-    // Add columns
     if (step.columns && step.columns.length > 0) {
+      const $columnsContainer = $('<div>').addClass('form-columns-container');
+
       step.columns.forEach((column) => {
-        $step.append(buildColumn(column));
+        $columnsContainer.append(buildColumn(column));
       });
+
+      $step.append($columnsContainer);
     }
 
-    // Add to container
     $stepsContainer.append($step);
   };
 
@@ -144,14 +229,11 @@
    */
   const buildColumn = (column) => {
     const $column = $('<div>').addClass('facility-locator-column');
+    const fieldId = `column_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Add column header
     if (column.header) {
       $column.append($('<h3>').text(column.header));
     }
-
-    // Build column based on type
-    const fieldId = `column_${Math.random().toString(36).substr(2, 9)}`;
 
     switch (column.type) {
       case 'radio':
@@ -169,15 +251,13 @@
   };
 
   /**
-   * Build a radio field
+   * Build radio field
    */
   const buildRadioField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
     if (column.options) {
-      // Handle both array format (new) and object format (backward compatibility)
       if (Array.isArray(column.options)) {
-        // New array format - preserves exact order
         column.options.forEach((option) => {
           const optionId = `${fieldId}_${option.value}`;
           const $option = $('<div>').addClass('facility-locator-field-option');
@@ -195,25 +275,6 @@
 
           $container.append($option);
         });
-      } else {
-        // Old object format - for backward compatibility
-        Object.entries(column.options).forEach(([value, label]) => {
-          const optionId = `${fieldId}_${value}`;
-          const $option = $('<div>').addClass('facility-locator-field-option');
-
-          $option.append(
-            $('<input>').attr({
-              type: 'radio',
-              id: optionId,
-              name: fieldId,
-              value: value,
-            })
-          );
-
-          $option.append($('<label>').attr('for', optionId).text(label));
-
-          $container.append($option);
-        });
       }
     }
 
@@ -221,15 +282,13 @@
   };
 
   /**
-   * Build a checkbox field
+   * Build checkbox field
    */
   const buildCheckboxField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
     if (column.options) {
-      // Handle both array format (new) and object format (backward compatibility)
       if (Array.isArray(column.options)) {
-        // New array format - preserves exact order
         column.options.forEach((option) => {
           const optionId = `${fieldId}_${option.value}`;
           const $option = $('<div>').addClass('facility-locator-field-option');
@@ -247,25 +306,6 @@
 
           $container.append($option);
         });
-      } else {
-        // Old object format - for backward compatibility
-        Object.entries(column.options).forEach(([value, label]) => {
-          const optionId = `${fieldId}_${value}`;
-          const $option = $('<div>').addClass('facility-locator-field-option');
-
-          $option.append(
-            $('<input>').attr({
-              type: 'checkbox',
-              id: optionId,
-              name: `${fieldId}[]`,
-              value: value,
-            })
-          );
-
-          $option.append($('<label>').attr('for', optionId).text(label));
-
-          $container.append($option);
-        });
       }
     }
 
@@ -273,7 +313,7 @@
   };
 
   /**
-   * Build a dropdown field
+   * Build dropdown field
    */
   const buildDropdownField = (column, fieldId) => {
     const $select = $('<select>')
@@ -283,7 +323,6 @@
       })
       .addClass('facility-locator-select');
 
-    // Add default option
     $select.append(
       $('<option>')
         .val('')
@@ -291,16 +330,9 @@
     );
 
     if (column.options) {
-      // Handle both array format (new) and object format (backward compatibility)
       if (Array.isArray(column.options)) {
-        // New array format - preserves exact order
         column.options.forEach((option) => {
           $select.append($('<option>').val(option.value).text(option.label));
-        });
-      } else {
-        // Old object format - for backward compatibility
-        Object.entries(column.options).forEach(([value, label]) => {
-          $select.append($('<option>').val(value).text(label));
         });
       }
     }
@@ -309,36 +341,28 @@
   };
 
   /**
-   * Navigate between steps
+   * Navigate between form steps
    */
   const navigateStep = ($container, direction) => {
     const $steps = $container.find('.facility-locator-step');
     const $currentStep = $steps.filter('.active');
     const currentIndex = parseInt($currentStep.data('step'));
 
-    // Validate current step if moving forward
     if (direction === 'next' && !validateStep($currentStep)) {
       return;
     }
 
-    // Determine new step index
     const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
 
-    // Check if new index is valid
     if (newIndex >= 0 && newIndex < $steps.length) {
-      // Hide current step
       $currentStep.removeClass('active');
-
-      // Show new step
       $steps.eq(newIndex).addClass('active');
-
-      // Update navigation buttons
       updateNavButtons($container);
     }
   };
 
   /**
-   * Validate the current step
+   * Validate current step
    */
   const validateStep = ($step) => {
     const $requiredFields = $step.find('[required]');
@@ -346,22 +370,15 @@
 
     $requiredFields.each(function () {
       const $field = $(this);
-
       if ($field.is(':checkbox, :radio')) {
-        // For checkboxes and radio buttons, check if any in the group is checked
         const name = $field.attr('name').replace('[]', '');
         if (!$step.find(`[name^="${name}"]:checked`).length) {
           valid = false;
-
-          // Highlight the field container
           $field.closest('.facility-locator-field').addClass('error');
         }
       } else {
-        // For other inputs, check if they have a value
         if (!$field.val()) {
           valid = false;
-
-          // Highlight the field
           $field.addClass('error');
         }
       }
@@ -371,7 +388,7 @@
   };
 
   /**
-   * Update navigation buttons based on current step
+   * Update navigation buttons
    */
   const updateNavButtons = ($container) => {
     const $steps = $container.find('.facility-locator-step');
@@ -384,10 +401,8 @@
     const $nextBtn = $container.find('.facility-locator-next-btn');
     const $submitBtn = $container.find('.facility-locator-submit-btn');
 
-    // Show/hide previous button
     $prevBtn.toggle(!isFirstStep);
 
-    // Show/hide next and submit buttons
     if (isLastStep) {
       $nextBtn.hide();
       $submitBtn.show();
@@ -398,17 +413,15 @@
   };
 
   /**
-   * Submit the form and display facilities
+   * Submit form and show main interface
    */
   const submitForm = ($container, id) => {
     const $form = $container.find('form');
     const formData = $form.serializeArray();
     const data = {};
 
-    // Process form data
     formData.forEach((field) => {
       if (field.name.endsWith('[]')) {
-        // Handle array fields (like checkboxes)
         const fieldName = field.name.slice(0, -2);
         if (!data[fieldName]) {
           data[fieldName] = [];
@@ -419,388 +432,683 @@
       }
     });
 
-    // Close popup
     $container.find('.facility-locator-popup').fadeOut(300);
     $('body').css('overflow', 'auto');
-
-    // Show map container
-    $container.find('.facility-locator-map-container').show();
-
-    // Fetch facilities
-    fetchFacilities($container, id, data);
+    showMainInterface($container, id, data);
   };
 
   /**
    * Show all facilities without filtering
    */
   const showAllFacilities = ($container, id) => {
-    // Close popup
     $container.find('.facility-locator-popup').fadeOut(300);
     $('body').css('overflow', 'auto');
+    showMainInterface($container, id, {});
+  };
 
-    // Show map container
-    $container.find('.facility-locator-map-container').show();
+  /**
+   * Show main interface
+   */
+  const showMainInterface = ($container, id, formData = {}) => {
+    $container.find('.facility-locator-cta').hide();
+    $container.find('.facility-locator-main-interface').show();
 
-    // Fetch all facilities
-    fetchFacilities($container, id, {});
+    // Store initial form data as filters
+    activeFilters[id] = { ...formData };
+
+    // Fetch facilities and render interface
+    fetchFacilities($container, id);
   };
 
   /**
    * Fetch facilities via AJAX
    */
-  const fetchFacilities = ($container, id, formData) => {
-    // Show loading state
-    $container.find('.facility-locator-map-container').addClass('loading');
-
-    // Make AJAX request
+  const fetchFacilities = ($container, id) => {
     $.ajax({
       url: facilityLocator.ajaxUrl,
       type: 'POST',
       data: {
         action: 'get_facilities',
         nonce: facilityLocator.nonce,
-        form_data: formData,
+        form_data: activeFilters[id],
       },
       success: (response) => {
         if (response.success) {
-          // Render map with facilities
+          facilitiesData[id] = response.data.facilities;
+
+          renderFilterBar($container, id, response.data.filters);
+          renderFacilityCards($container, id, response.data.facilities);
           renderMap($container, id, response.data.facilities);
-
-          // Render filter bar
-          renderFilters($container, id, response.data.filters, formData);
-
-          // Render facility list
-          renderFacilityList($container, id, response.data.facilities);
         } else {
-          // Show error message
           console.error('Error fetching facilities:', response.data);
         }
-
-        // Remove loading state
-        $container.find('.facility-locator-map-container').removeClass('loading');
       },
       error: (xhr, status, error) => {
         console.error('AJAX error:', error);
-
-        // Remove loading state
-        $container.find('.facility-locator-map-container').removeClass('loading');
       },
     });
   };
 
   /**
-   * Render Google Map with facilities
+   * Render filter bar
+   */
+  const renderFilterBar = ($container, id, filters) => {
+    const $filterItems = $container.find('.filter-items');
+    $filterItems.empty();
+
+    // Add mobile filter trigger
+    if (window.innerWidth <= 768) {
+      $filterItems.append(`
+        <button class="mobile-filter-trigger">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+          </svg>
+          Filters
+        </button>
+      `);
+    }
+
+    Object.entries(filters).forEach(([taxonomyType, taxonomyItems]) => {
+      if (taxonomyItems && taxonomyItems.length > 0) {
+        const taxonomyDisplayName = facilityLocator.availableTaxonomies[taxonomyType]?.label || taxonomyType;
+        const selectedCount = getSelectedFilterCount(id, taxonomyType);
+        const buttonText = selectedCount > 0 ? `${taxonomyDisplayName} (${selectedCount})` : taxonomyDisplayName;
+
+        const $dropdown = $(`
+          <div class="filter-dropdown" data-taxonomy="${taxonomyType}">
+            <button class="filter-dropdown-button ${selectedCount > 0 ? 'active' : ''}">
+              <span>${buttonText}</span>
+              <svg class="filter-dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            <div class="filter-dropdown-menu">
+              ${taxonomyItems
+                .map(
+                  (item) => `
+                <div class="filter-option">
+                  <input type="checkbox" id="filter_${taxonomyType}_${item.id}" 
+                         value="${item.id}" data-taxonomy="${taxonomyType}"
+                         ${isFilterSelected(id, taxonomyType, item.id) ? 'checked' : ''}>
+                  <label for="filter_${taxonomyType}_${item.id}">${item.name}</label>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          </div>
+        `);
+
+        $filterItems.append($dropdown);
+      }
+    });
+
+    // Render mobile filter drawer
+    renderMobileFilterDrawer($container, filters);
+  };
+
+  /**
+   * Render mobile filter drawer
+   */
+  const renderMobileFilterDrawer = ($container, filters) => {
+    const $mobileContent = $container.find('.mobile-filter-content');
+    $mobileContent.empty();
+
+    Object.entries(filters).forEach(([taxonomyType, taxonomyItems]) => {
+      if (taxonomyItems && taxonomyItems.length > 0) {
+        const taxonomyDisplayName = facilityLocator.availableTaxonomies[taxonomyType]?.label || taxonomyType;
+
+        const $section = $(`
+          <div class="mobile-filter-section">
+            <h4>${taxonomyDisplayName}</h4>
+            <div class="mobile-filter-options">
+              ${taxonomyItems
+                .map(
+                  (item) => `
+                <div class="filter-option">
+                  <input type="checkbox" id="mobile_filter_${taxonomyType}_${item.id}" 
+                         value="${item.id}" data-taxonomy="${taxonomyType}">
+                  <label for="mobile_filter_${taxonomyType}_${item.id}">${item.name}</label>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          </div>
+        `);
+
+        $mobileContent.append($section);
+      }
+    });
+  };
+
+  /**
+   * Render facility cards
+   */
+  const renderFacilityCards = ($container, id, facilities) => {
+    const $cardsContainer = $container.find('.facility-cards-container');
+    const $resultsCount = $container.find('.results-count');
+
+    $resultsCount.text(`${facilities.length} facilities found`);
+    $cardsContainer.empty();
+
+    if (!facilities || facilities.length === 0) {
+      $cardsContainer.html('<div class="no-results">No facilities found. Please adjust your search criteria.</div>');
+      return;
+    }
+
+    facilities.forEach((facility) => {
+      const $card = createFacilityCard(facility);
+      $cardsContainer.append($card);
+    });
+  };
+
+  /**
+   * Create a facility card
+   */
+  const createFacilityCard = (facility) => {
+    const images = facility.images || [];
+    const hasImages = images.length > 0;
+    const maxImages = Math.min(images.length, 5);
+
+    const $card = $(`
+      <div class="facility-card" data-facility-id="${facility.id}">
+        <div class="facility-card-header">
+          <h3 class="facility-name">${facility.name}</h3>
+          <span class="facility-type">${facility.levels_of_care_names?.[0] || 'Facility'}</span>
+        </div>
+        <div class="facility-address">${facility.address}</div>
+        ${
+          hasImages
+            ? createImageCarousel(images, maxImages)
+            : '<div class="facility-image-carousel"><div class="carousel-placeholder">No images available</div></div>'
+        }
+        ${createFeatureTags(facility)}
+        <div class="facility-actions">
+          ${
+            facility.phone
+              ? `<a href="tel:${facility.phone}" class="facility-action-btn primary">${facility.phone}</a>`
+              : ''
+          }
+          ${
+            facility.website
+              ? `<a href="${facility.website}" target="_blank" class="facility-action-btn">Visit Website</a>`
+              : ''
+          }
+        </div>
+      </div>
+    `);
+
+    return $card;
+  };
+
+  /**
+   * Create image carousel
+   */
+  const createImageCarousel = (images, maxImages) => {
+    const limitedImages = images.slice(0, maxImages);
+
+    return `
+      <div class="facility-image-carousel" data-current-slide="0">
+        <div class="carousel-container">
+          <div class="carousel-slides">
+            ${limitedImages
+              .map(
+                (image) => `
+              <div class="carousel-slide">
+                <img src="${image}" alt="Facility image" loading="lazy">
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+          ${
+            limitedImages.length > 1
+              ? `
+            <button class="carousel-nav carousel-prev">‹</button>
+            <button class="carousel-nav carousel-next">›</button>
+            <div class="carousel-indicators">
+              ${limitedImages
+                .map(
+                  (_, index) => `
+                <div class="carousel-indicator ${index === 0 ? 'active' : ''}" data-index="${index}"></div>
+              `
+                )
+                .join('')}
+            </div>
+          `
+              : ''
+          }
+        </div>
+      </div>
+    `;
+  };
+
+  /**
+   * Create feature tags
+   */
+  const createFeatureTags = (facility) => {
+    const features = [];
+
+    // Collect features from all taxonomies
+    Object.keys(facilityLocator.availableTaxonomies).forEach((taxonomyType) => {
+      const names = facility[`${taxonomyType}_names`];
+      if (names && names.length > 0) {
+        features.push(...names.slice(0, 3)); // Limit to 3 per taxonomy
+      }
+    });
+
+    if (features.length === 0) return '';
+
+    return `
+      <div class="facility-features">
+        <div class="feature-tags">
+          ${features
+            .slice(0, 6)
+            .map((feature) => `<span class="feature-tag">${feature}</span>`)
+            .join('')}
+        </div>
+      </div>
+    `;
+  };
+
+  /**
+   * Navigate carousel
+   */
+  const navigateCarousel = ($button, direction) => {
+    const $carousel = $button.closest('.facility-image-carousel');
+    const $slides = $carousel.find('.carousel-slides');
+    const $indicators = $carousel.find('.carousel-indicator');
+    const totalSlides = $carousel.find('.carousel-slide').length;
+
+    let currentSlide = parseInt($carousel.data('current-slide')) || 0;
+    currentSlide = (currentSlide + direction + totalSlides) % totalSlides;
+
+    $carousel.data('current-slide', currentSlide);
+    $slides.css('transform', `translateX(-${currentSlide * 100}%)`);
+
+    $indicators.removeClass('active');
+    $indicators.eq(currentSlide).addClass('active');
+  };
+
+  /**
+   * Go to specific carousel slide
+   */
+  const goToCarouselSlide = ($indicator, index) => {
+    const $carousel = $indicator.closest('.facility-image-carousel');
+    const $slides = $carousel.find('.carousel-slides');
+    const $indicators = $carousel.find('.carousel-indicator');
+
+    $carousel.data('current-slide', index);
+    $slides.css('transform', `translateX(-${index * 100}%)`);
+
+    $indicators.removeClass('active');
+    $indicators.eq(index).addClass('active');
+  };
+
+  /**
+   * Render Google Map
    */
   const renderMap = ($container, id, facilities) => {
     const $mapContainer = $container.find(`#${id}-map`);
-    const mapHeight = facilityLocator.settings.mapHeight || 500;
-    const mapZoom = parseInt(facilityLocator.settings.mapZoom) || 10;
 
-    // Set map height
-    $mapContainer.css('height', `${mapHeight}px`);
-
-    // Initialize map if not already created
     if (!maps[id]) {
-      // Create map
       maps[id] = new google.maps.Map($mapContainer[0], {
-        zoom: mapZoom,
-        center: { lat: 40.7128, lng: -74.006 }, // Default to New York
+        zoom: 10,
+        center: { lat: 40.7128, lng: -74.006 },
         mapTypeControl: true,
-        scrollwheel: false,
+        scrollwheel: true,
         streetViewControl: false,
         fullscreenControl: true,
+        styles: [
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }],
+          },
+        ],
       });
 
-      // Initialize markers array
       markers[id] = [];
       infoWindows[id] = [];
     }
 
-    // Clear existing markers
+    // Clear existing markers and clusterer
     clearMarkers(id);
 
-    // Handle case with no facilities
     if (!facilities || facilities.length === 0) {
-      $container.find('.facility-locator-list').html('<p>No facilities found. Please adjust your search criteria.</p>');
       return;
     }
 
-    // Add markers for each facility
     const bounds = new google.maps.LatLngBounds();
 
+    // Create markers
     facilities.forEach((facility, index) => {
       const position = {
         lat: parseFloat(facility.lat),
         lng: parseFloat(facility.lng),
       };
 
-      // Create marker
       const marker = new google.maps.Marker({
         position,
-        map: maps[id],
         title: facility.name,
-        animation: google.maps.Animation.DROP,
+        icon: {
+          url:
+            'data:image/svg+xml;charset=UTF-8,' +
+            encodeURIComponent(`
+            <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 0C7.2 0 0 7.2 0 16c0 16 16 24 16 24s16-8 16-24c0-8.8-7.2-16-16-16z" fill="#3b82f6"/>
+              <circle cx="16" cy="16" r="8" fill="white"/>
+            </svg>
+          `),
+          scaledSize: new google.maps.Size(32, 40),
+          anchor: new google.maps.Point(16, 40),
+        },
       });
-
-      // Create info window content
-      const infoWindowContent = `
-        <div class="facility-info-window">
-            <h3>${facility.name}</h3>
-            <p>${facility.address}</p>
-            ${facility.phone ? `<p>Phone: ${facility.phone}</p>` : ''}
-            ${facility.email ? `<p>Email: ${facility.email}</p>` : ''}
-            ${facility.website ? `<p><a href="${facility.website}" target="_blank">Website</a></p>` : ''}
-        </div>
-      `;
 
       // Create info window
       const infoWindow = new google.maps.InfoWindow({
-        content: infoWindowContent,
+        content: `
+          <div style="padding: 8px; min-width: 200px;">
+            <h4 style="margin: 0 0 8px 0; font-size: 16px;">${facility.name}</h4>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${facility.address}</p>
+            ${
+              facility.phone
+                ? `<p style="margin: 0; font-size: 14px;"><strong>Phone:</strong> ${facility.phone}</p>`
+                : ''
+            }
+          </div>
+        `,
       });
 
-      // Add click listener to marker
+      // Add click listener
       marker.addListener('click', () => {
-        // Close all open info windows
-        infoWindows[id].forEach((window) => {
-          window.close();
-        });
+        // Close all info windows
+        infoWindows[id].forEach((window) => window.close());
 
         // Open this info window
         infoWindow.open(maps[id], marker);
 
-        // Scroll to the corresponding facility in the list
-        const $facilityList = $container.find('.facility-locator-list');
-        const $facilityItem = $facilityList.find(`[data-id="${facility.id}"]`);
-
-        if ($facilityItem.length) {
-          $facilityList.animate(
-            {
-              scrollTop: $facilityItem.position().top + $facilityList.scrollTop(),
-            },
-            500
-          );
-
-          // Highlight the facility
-          $facilityList.find('.facility-item').removeClass('highlighted');
-          $facilityItem.addClass('highlighted');
-        }
+        // Highlight facility card and show details
+        highlightFacilityCard(facility.id);
+        showFacilityDetails($container, facility.id);
       });
 
-      // Add marker and info window to arrays
       markers[id].push(marker);
       infoWindows[id].push(infoWindow);
-
-      // Extend bounds
       bounds.extend(position);
     });
 
-    // Fit map to bounds
-    maps[id].fitBounds(bounds);
+    // Add marker clustering
+    if (window.MarkerClusterer) {
+      if (markerClusterer[id]) {
+        markerClusterer[id].clearMarkers();
+      }
 
-    // If only one marker, zoom in more
+      markerClusterer[id] = new MarkerClusterer(maps[id], markers[id], {
+        imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m',
+        gridSize: 60,
+        maxZoom: 15,
+      });
+    } else {
+      // Set markers on map if no clustering
+      markers[id].forEach((marker) => marker.setMap(maps[id]));
+    }
+
+    // Fit map to bounds
     if (facilities.length === 1) {
+      maps[id].setCenter(bounds.getCenter());
       maps[id].setZoom(15);
+    } else if (facilities.length > 1) {
+      maps[id].fitBounds(bounds);
     }
   };
 
   /**
-   * Clear all markers from the map
+   * Clear markers
    */
   const clearMarkers = (id) => {
+    if (markerClusterer[id]) {
+      markerClusterer[id].clearMarkers();
+    }
+
     if (markers[id]) {
-      markers[id].forEach((marker) => {
-        marker.setMap(null);
-      });
+      markers[id].forEach((marker) => marker.setMap(null));
       markers[id] = [];
     }
 
     if (infoWindows[id]) {
-      infoWindows[id].forEach((infoWindow) => {
-        infoWindow.close();
-      });
+      infoWindows[id].forEach((window) => window.close());
       infoWindows[id] = [];
     }
   };
 
   /**
-   * Render filter bar
+   * Highlight facility card
    */
-  const renderFilters = ($container, id, filters, formData) => {
-    const $filtersContainer = $container.find('.facility-locator-filters');
-    $filtersContainer.empty();
+  const highlightFacilityCard = (facilityId) => {
+    $('.facility-card').removeClass('highlighted');
+    $(`.facility-card[data-facility-id="${facilityId}"]`).addClass('highlighted');
 
-    // Create taxonomy filters
-    Object.entries(filters).forEach(([taxonomyType, taxonomyItems]) => {
-      if (taxonomyItems && taxonomyItems.length > 0) {
-        const $filter = $('<div>').addClass('facility-locator-filter');
-
-        // Get taxonomy display name
-        const taxonomyDisplayName = facilityLocator.availableTaxonomies[taxonomyType]?.label || taxonomyType;
-        $filter.append($('<label>').text(taxonomyDisplayName));
-
-        const $select = $('<select>')
-          .addClass(`facility-filter-${taxonomyType}`)
-          .attr('multiple', 'multiple')
-          .attr('data-placeholder', `All ${taxonomyDisplayName}`);
-
-        // Add options
-        $select.append($('<option>').val('').text(`All ${taxonomyDisplayName}`));
-
-        taxonomyItems.forEach((item) => {
-          const $option = $('<option>').val(item.id).text(item.name);
-
-          // Set selected based on form data
-          if (formData[taxonomyType] && formData[taxonomyType].includes(item.id.toString())) {
-            $option.prop('selected', true);
-          }
-
-          $select.append($option);
-        });
-
-        $filter.append($select);
-        $filtersContainer.append($filter);
-      }
-    });
-
-    // Add filter button
-    const $filterButton = $('<button>')
-      .addClass('facility-locator-filter-button')
-      .text('Apply Filters')
-      .on('click', () => {
-        const filterData = {};
-
-        // Get filter values for all taxonomies
-        Object.keys(filters).forEach((taxonomyType) => {
-          const values = $container.find(`.facility-filter-${taxonomyType}`).val();
-          if (values && values.length > 0 && values[0] !== '') {
-            filterData[taxonomyType] = values;
-          }
-        });
-
-        // Keep other form data values
-        Object.entries(formData).forEach(([key, value]) => {
-          if (!Object.keys(filters).includes(key)) {
-            filterData[key] = value;
-          }
-        });
-
-        // Fetch facilities with new filters
-        fetchFacilities($container, id, filterData);
-      });
-
-    $filtersContainer.append($filterButton);
-
-    // Initialize select2 for multiple select if available
-    if ($.fn.select2) {
-      $container.find('[class*="facility-filter-"]').select2({
-        width: '100%',
-        minimumResultsForSearch: 5,
-      });
+    // Scroll to highlighted card
+    const $card = $(`.facility-card[data-facility-id="${facilityId}"]`);
+    if ($card.length) {
+      const $container = $card.closest('.facility-cards-container');
+      const cardTop = $card.position().top;
+      const scrollTop = $container.scrollTop();
+      $container.animate(
+        {
+          scrollTop: scrollTop + cardTop - 20,
+        },
+        300
+      );
     }
   };
 
   /**
-   * Render facility list
+   * Highlight map pin
    */
-  const renderFacilityList = ($container, id, facilities) => {
-    const $listContainer = $container.find('.facility-locator-list');
-    $listContainer.empty();
+  const highlightMapPin = (id, facilityId) => {
+    // Find the facility in our data
+    const facility = facilitiesData[id].find((f) => f.id == facilityId);
+    if (!facility) return;
 
-    // Handle case with no facilities
-    if (!facilities || facilities.length === 0) {
-      $listContainer.html('<p>No facilities found. Please adjust your search criteria.</p>');
-      return;
+    // Find corresponding marker and trigger click
+    const facilityIndex = facilitiesData[id].findIndex((f) => f.id == facilityId);
+    if (markers[id] && markers[id][facilityIndex]) {
+      google.maps.event.trigger(markers[id][facilityIndex], 'click');
     }
+  };
 
-    // Create list
-    const $list = $('<div>').addClass('facility-locator-items');
+  /**
+   * Clear highlighted pin
+   */
+  const clearHighlightedPin = () => {
+    // Close all info windows
+    Object.values(infoWindows).forEach((windowArray) => {
+      windowArray.forEach((window) => window.close());
+    });
+  };
 
-    // Add facilities to list
-    facilities.forEach((facility, index) => {
-      const $item = $('<div>').addClass('facility-item').attr('data-id', facility.id);
+  /**
+   * Show facility details
+   */
+  const showFacilityDetails = ($container, facilityId) => {
+    const id = $container.attr('id');
+    const facility = facilitiesData[id].find((f) => f.id == facilityId);
+    if (!facility) return;
 
-      // Add facility details
-      $item.append($('<h3>').text(facility.name));
-      $item.append($('<p>').text(facility.address));
+    currentFacilityId = facilityId;
 
-      if (facility.phone) {
-        $item.append($('<p>').html(`<strong>Phone:</strong> ${facility.phone}`));
+    const $modal = $container.find('.facility-detail-modal');
+    const $body = $modal.find('.facility-detail-body');
+
+    // Create detailed content
+    const detailContent = createDetailedFacilityContent(facility);
+    $body.html(detailContent);
+
+    // Show modal
+    $modal.addClass('open');
+  };
+
+  /**
+   * Create detailed facility content
+   */
+  const createDetailedFacilityContent = (facility) => {
+    const images = facility.images || [];
+    const hasImages = images.length > 0;
+
+    return `
+      <div class="facility-detail-header">
+        <h2>${facility.name}</h2>
+        <div class="facility-detail-type">${facility.levels_of_care_names?.[0] || 'Facility'}</div>
+      </div>
+      
+      ${
+        hasImages
+          ? createImageCarousel(images, 5)
+          : '<div class="facility-image-carousel"><div class="carousel-placeholder">No images available</div></div>'
       }
-
-      if (facility.email) {
-        $item.append($('<p>').html(`<strong>Email:</strong> ${facility.email}`));
-      }
-
-      // Add taxonomy information
-      Object.keys(facilityLocator.availableTaxonomies).forEach((taxonomyType) => {
-        const taxonomyNames = facility[`${taxonomyType}_names`];
-        if (taxonomyNames && taxonomyNames.length > 0) {
-          const taxonomyDisplayName = facilityLocator.availableTaxonomies[taxonomyType].label;
-          const $taxonomyDiv = $('<div>').addClass(`facility-item-${taxonomyType}`);
-          $taxonomyDiv.append($('<p>').html(`<strong>${taxonomyDisplayName}:</strong>`));
-
-          taxonomyNames.forEach((name) => {
-            $taxonomyDiv.append($('<span>').text(name));
-          });
-
-          $item.append($taxonomyDiv);
+      
+      <div class="facility-detail-info">
+        <div class="facility-detail-section">
+          <h4>Contact Information</h4>
+          <p><strong>Address:</strong> ${facility.address}</p>
+          ${
+            facility.phone ? `<p><strong>Phone:</strong> <a href="tel:${facility.phone}">${facility.phone}</a></p>` : ''
+          }
+          ${
+            facility.website
+              ? `<p><strong>Website:</strong> <a href="${facility.website}" target="_blank">${facility.website}</a></p>`
+              : ''
+          }
+        </div>
+        
+        ${
+          facility.description
+            ? `
+          <div class="facility-detail-section">
+            <h4>About</h4>
+            <div class="facility-description">${facility.description}</div>
+          </div>
+        `
+            : ''
         }
-      });
-
-      // Add actions
-      const $actions = $('<div>').addClass('facility-item-actions');
-
-      // View on map action
-      $actions.append(
-        $('<a>')
-          .addClass('facility-item-action')
-          .attr('href', '#')
-          .text('View on Map')
-          .on('click', (e) => {
-            e.preventDefault();
-
-            // Trigger click on the corresponding marker
-            if (markers[id] && markers[id][index]) {
-              google.maps.event.trigger(markers[id][index], 'click');
-
-              // Center map on marker
-              maps[id].panTo(markers[id][index].getPosition());
-              maps[id].setZoom(15);
-            }
-          })
-      );
-
-      // Get directions action
-      $actions.append(
-        $('<a>')
-          .addClass('facility-item-action')
-          .attr('href', `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(facility.address)}`)
-          .attr('target', '_blank')
-          .text('Get Directions')
-      );
-
-      // Add actions to item
-      $item.append($actions);
-
-      // Add hover effect
-      $item
-        .on('mouseenter', () => {
-          if (markers[id] && markers[id][index]) {
-            markers[id][index].setAnimation(google.maps.Animation.BOUNCE);
+        
+        ${createDetailedFeaturesSections(facility)}
+        
+        <div class="facility-detail-actions">
+          ${
+            facility.phone
+              ? `<a href="tel:${facility.phone}" class="facility-action-btn primary">Call ${facility.phone}</a>`
+              : ''
           }
-        })
-        .on('mouseleave', () => {
-          if (markers[id] && markers[id][index]) {
-            markers[id][index].setAnimation(null);
+          ${
+            facility.website
+              ? `<a href="${facility.website}" target="_blank" class="facility-action-btn">Visit Website</a>`
+              : ''
           }
-        });
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+            facility.address
+          )}" target="_blank" class="facility-action-btn">Get Directions</a>
+        </div>
+      </div>
+    `;
+  };
 
-      // Add item to list
-      $list.append($item);
+  /**
+   * Create detailed features sections
+   */
+  const createDetailedFeaturesSections = (facility) => {
+    let sections = '';
+
+    Object.keys(facilityLocator.availableTaxonomies).forEach((taxonomyType) => {
+      const names = facility[`${taxonomyType}_names`];
+      if (names && names.length > 0) {
+        const taxonomyDisplayName = facilityLocator.availableTaxonomies[taxonomyType].label;
+        sections += `
+          <div class="facility-detail-section">
+            <h4>${taxonomyDisplayName}</h4>
+            <div class="feature-tags">
+              ${names.map((name) => `<span class="feature-tag">${name}</span>`).join('')}
+            </div>
+          </div>
+        `;
+      }
     });
 
-    // Add list to container
-    $listContainer.append($list);
+    return sections;
+  };
+
+  /**
+   * Update filters
+   */
+  const updateFilters = ($container, id) => {
+    // Collect selected filters
+    const filters = {};
+
+    $container.find('.filter-option input[type="checkbox"]:checked').each(function () {
+      const taxonomyType = $(this).data('taxonomy');
+      const value = $(this).val();
+
+      if (!filters[taxonomyType]) {
+        filters[taxonomyType] = [];
+      }
+      filters[taxonomyType].push(value);
+    });
+
+    activeFilters[id] = filters;
+
+    // Update filter button states
+    updateFilterButtonStates($container, id);
+
+    // Fetch updated facilities
+    fetchFacilities($container, id);
+  };
+
+  /**
+   * Update filter button states
+   */
+  const updateFilterButtonStates = ($container, id) => {
+    $container.find('.filter-dropdown').each(function () {
+      const $dropdown = $(this);
+      const taxonomyType = $dropdown.data('taxonomy');
+      const selectedCount = getSelectedFilterCount(id, taxonomyType);
+      const taxonomyDisplayName = facilityLocator.availableTaxonomies[taxonomyType]?.label || taxonomyType;
+      const buttonText = selectedCount > 0 ? `${taxonomyDisplayName} (${selectedCount})` : taxonomyDisplayName;
+
+      const $button = $dropdown.find('.filter-dropdown-button');
+      $button.find('span').text(buttonText);
+      $button.toggleClass('active', selectedCount > 0);
+    });
+  };
+
+  /**
+   * Get selected filter count
+   */
+  const getSelectedFilterCount = (id, taxonomyType) => {
+    return activeFilters[id] && activeFilters[id][taxonomyType] ? activeFilters[id][taxonomyType].length : 0;
+  };
+
+  /**
+   * Check if filter is selected
+   */
+  const isFilterSelected = (id, taxonomyType, itemId) => {
+    return (
+      activeFilters[id] &&
+      activeFilters[id][taxonomyType] &&
+      activeFilters[id][taxonomyType].includes(itemId.toString())
+    );
+  };
+
+  /**
+   * Clear all filters
+   */
+  const clearAllFilters = ($container, id) => {
+    activeFilters[id] = {};
+    $container.find('.filter-option input[type="checkbox"]').prop('checked', false);
+    updateFilterButtonStates($container, id);
+    fetchFacilities($container, id);
   };
 
   // Initialize when document is ready

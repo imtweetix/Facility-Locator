@@ -36,7 +36,7 @@ abstract class Facility_Locator_Base_Taxonomy
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table_name} WHERE taxonomy_type = %s ORDER BY name ASC",
+            "SELECT * FROM {$this->table_name} WHERE taxonomy_type = %s ORDER BY id ASC",
             $this->taxonomy_type
         ));
     }
@@ -413,8 +413,8 @@ class Facility_Locator_Taxonomy_Manager
 
         $id_placeholders = implode(',', array_fill(0, count($ids), '%d'));
         $query = $wpdb->prepare(
-            "SELECT * FROM {$table_name} WHERE taxonomy_type = %s AND id IN ({$id_placeholders}) ORDER BY name ASC",
-            array_merge(array($type), $ids)
+            "SELECT * FROM {$table_name} WHERE taxonomy_type = %s AND id IN ({$id_placeholders}) ORDER BY FIELD(id, {$id_placeholders})",
+            array_merge(array($type), $ids, $ids)
         );
 
         return $wpdb->get_results($query);

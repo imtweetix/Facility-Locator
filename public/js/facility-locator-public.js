@@ -128,10 +128,10 @@
     // Add step title
     $step.append($('<h2>').text(step.title));
 
-    // Add fields
-    if (step.fields && step.fields.length > 0) {
-      step.fields.forEach((field) => {
-        $step.append(buildField(field));
+    // Add columns
+    if (step.columns && step.columns.length > 0) {
+      step.columns.forEach((column) => {
+        $step.append(buildColumn(column));
       });
     }
 
@@ -140,108 +140,172 @@
   };
 
   /**
-   * Build a form field
+   * Build a form column
    */
-  const buildField = (field) => {
-    const $field = $('<div>').addClass('facility-locator-field');
+  const buildColumn = (column) => {
+    const $column = $('<div>').addClass('facility-locator-column');
 
-    // Add label
-    $field.append(
-      $('<label>')
-        .attr('for', field.id)
-        .text(field.label + (field.required ? ' *' : ''))
-    );
+    // Add column header
+    if (column.header) {
+      $column.append($('<h3>').text(column.header));
+    }
 
-    // Build field based on type
-    switch (field.type) {
-      case 'text':
-        $field.append(
-          $('<input>').attr({
-            type: 'text',
-            id: field.id,
-            name: field.id,
-            required: field.required || false,
-          })
-        );
-        break;
+    // Build column based on type
+    const fieldId = `column_${Math.random().toString(36).substr(2, 9)}`;
 
-      case 'select':
-        const $select = $('<select>').attr({
-          id: field.id,
-          name: field.id,
-          required: field.required || false,
-        });
-
-        // Add options
-        if (field.options) {
-          Object.entries(field.options).forEach(([value, label]) => {
-            $select.append(
-              $('<option>')
-                .attr('value', value)
-                .text(label)
-                .prop('selected', value === field.default)
-            );
-          });
-        }
-
-        $field.append($select);
-        break;
-
+    switch (column.type) {
       case 'radio':
-        const $radioContainer = $('<div>').addClass('facility-locator-field-options');
-
-        if (field.options) {
-          Object.entries(field.options).forEach(([value, label]) => {
-            const $option = $('<div>').addClass('facility-locator-field-option');
-
-            $option.append(
-              $('<input>')
-                .attr({
-                  type: 'radio',
-                  id: `${field.id}_${value}`,
-                  name: field.id,
-                  value: value,
-                  required: field.required || false,
-                })
-                .prop('checked', value === field.default)
-            );
-
-            $option.append($('<label>').attr('for', `${field.id}_${value}`).text(label));
-
-            $radioContainer.append($option);
-          });
-        }
-
-        $field.append($radioContainer);
+        $column.append(buildRadioField(column, fieldId));
         break;
-
       case 'checkbox':
-        const $checkboxContainer = $('<div>').addClass('facility-locator-field-options');
-
-        if (field.options) {
-          Object.entries(field.options).forEach(([value, label]) => {
-            const $option = $('<div>').addClass('facility-locator-field-option');
-
-            $option.append(
-              $('<input>').attr({
-                type: 'checkbox',
-                id: `${field.id}_${value}`,
-                name: `${field.id}[]`,
-                value: value,
-              })
-            );
-
-            $option.append($('<label>').attr('for', `${field.id}_${value}`).text(label));
-
-            $checkboxContainer.append($option);
-          });
-        }
-
-        $field.append($checkboxContainer);
+        $column.append(buildCheckboxField(column, fieldId));
+        break;
+      case 'dropdown':
+        $column.append(buildDropdownField(column, fieldId));
         break;
     }
 
-    return $field;
+    return $column;
+  };
+
+  /**
+   * Build a radio field
+   */
+  const buildRadioField = (column, fieldId) => {
+    const $container = $('<div>').addClass('facility-locator-field-options');
+
+    if (column.options) {
+      // Handle both array format (new) and object format (backward compatibility)
+      if (Array.isArray(column.options)) {
+        // New array format - preserves exact order
+        column.options.forEach((option) => {
+          const optionId = `${fieldId}_${option.value}`;
+          const $option = $('<div>').addClass('facility-locator-field-option');
+
+          $option.append(
+            $('<input>').attr({
+              type: 'radio',
+              id: optionId,
+              name: fieldId,
+              value: option.value,
+            })
+          );
+
+          $option.append($('<label>').attr('for', optionId).text(option.label));
+
+          $container.append($option);
+        });
+      } else {
+        // Old object format - for backward compatibility
+        Object.entries(column.options).forEach(([value, label]) => {
+          const optionId = `${fieldId}_${value}`;
+          const $option = $('<div>').addClass('facility-locator-field-option');
+
+          $option.append(
+            $('<input>').attr({
+              type: 'radio',
+              id: optionId,
+              name: fieldId,
+              value: value,
+            })
+          );
+
+          $option.append($('<label>').attr('for', optionId).text(label));
+
+          $container.append($option);
+        });
+      }
+    }
+
+    return $container;
+  };
+
+  /**
+   * Build a checkbox field
+   */
+  const buildCheckboxField = (column, fieldId) => {
+    const $container = $('<div>').addClass('facility-locator-field-options');
+
+    if (column.options) {
+      // Handle both array format (new) and object format (backward compatibility)
+      if (Array.isArray(column.options)) {
+        // New array format - preserves exact order
+        column.options.forEach((option) => {
+          const optionId = `${fieldId}_${option.value}`;
+          const $option = $('<div>').addClass('facility-locator-field-option');
+
+          $option.append(
+            $('<input>').attr({
+              type: 'checkbox',
+              id: optionId,
+              name: `${fieldId}[]`,
+              value: option.value,
+            })
+          );
+
+          $option.append($('<label>').attr('for', optionId).text(option.label));
+
+          $container.append($option);
+        });
+      } else {
+        // Old object format - for backward compatibility
+        Object.entries(column.options).forEach(([value, label]) => {
+          const optionId = `${fieldId}_${value}`;
+          const $option = $('<div>').addClass('facility-locator-field-option');
+
+          $option.append(
+            $('<input>').attr({
+              type: 'checkbox',
+              id: optionId,
+              name: `${fieldId}[]`,
+              value: value,
+            })
+          );
+
+          $option.append($('<label>').attr('for', optionId).text(label));
+
+          $container.append($option);
+        });
+      }
+    }
+
+    return $container;
+  };
+
+  /**
+   * Build a dropdown field
+   */
+  const buildDropdownField = (column, fieldId) => {
+    const $select = $('<select>')
+      .attr({
+        id: fieldId,
+        name: fieldId,
+      })
+      .addClass('facility-locator-select');
+
+    // Add default option
+    $select.append(
+      $('<option>')
+        .val('')
+        .text(`Select ${column.header || 'Option'}`)
+    );
+
+    if (column.options) {
+      // Handle both array format (new) and object format (backward compatibility)
+      if (Array.isArray(column.options)) {
+        // New array format - preserves exact order
+        column.options.forEach((option) => {
+          $select.append($('<option>').val(option.value).text(option.label));
+        });
+      } else {
+        // Old object format - for backward compatibility
+        Object.entries(column.options).forEach(([value, label]) => {
+          $select.append($('<option>').val(value).text(label));
+        });
+      }
+    }
+
+    return $select;
   };
 
   /**

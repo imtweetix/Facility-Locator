@@ -40,111 +40,90 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
                                                 <input type="text" id="step-<?php echo esc_attr($step_index); ?>-title" value="<?php echo esc_attr($step['title']); ?>" class="step-title regular-text">
                                             </td>
                                         </tr>
-                                        <tr>
-                                            <th scope="row"><label for="step-<?php echo esc_attr($step_index); ?>-type">Step Type</label></th>
-                                            <td>
-                                                <select id="step-<?php echo esc_attr($step_index); ?>-type" class="step-type">
-                                                    <option value="radio_columns" <?php selected($step['type'], 'radio_columns'); ?>>Radio Button</option>
-                                                    <option value="checkbox_columns" <?php selected($step['type'], 'checkbox_columns'); ?>>Checkbox</option>
-                                                    <option value="dropdown" <?php selected($step['type'], 'dropdown'); ?>>Dropdown</option>
-                                                </select>
-                                            </td>
-                                        </tr>
                                     </table>
 
-                                    <?php if ($step['type'] === 'radio_columns' || $step['type'] === 'checkbox_columns') : ?>
-                                        <div class="step-columns">
-                                            <h4>Columns</h4>
+                                    <div class="step-columns">
+                                        <h4>Columns</h4>
 
-                                            <div class="columns-container" data-sortable="columns">
-                                                <?php if (isset($step['columns']) && is_array($step['columns'])) : ?>
-                                                    <?php foreach ($step['columns'] as $column_index => $column) : ?>
-                                                        <div class="step-column" data-column="<?php echo esc_attr($column_index); ?>">
-                                                            <div class="column-header-bar">
-                                                                <span class="column-drag-handle">⋮⋮</span>
-                                                                <h5>Column <?php echo esc_html($column_index + 1); ?></h5>
-                                                            </div>
+                                        <div class="columns-container" data-sortable="columns">
+                                            <?php if (isset($step['columns']) && is_array($step['columns'])) : ?>
+                                                <?php foreach ($step['columns'] as $column_index => $column) : ?>
+                                                    <div class="step-column" data-column="<?php echo esc_attr($column_index); ?>">
+                                                        <div class="column-header-bar">
+                                                            <span class="column-drag-handle">⋮⋮</span>
+                                                            <h5>Column <?php echo esc_html($column_index + 1); ?></h5>
+                                                        </div>
 
-                                                            <p>
-                                                                <label>Column Header:</label>
-                                                                <input type="text" value="<?php echo esc_attr($column['header']); ?>" class="column-header regular-text">
-                                                            </p>
+                                                        <table class="form-table">
+                                                            <tr>
+                                                                <th scope="row"><label>Column Header:</label></th>
+                                                                <td>
+                                                                    <input type="text" value="<?php echo esc_attr($column['header']); ?>" class="column-header regular-text">
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th scope="row"><label>Input Type:</label></th>
+                                                                <td>
+                                                                    <select class="column-type">
+                                                                        <option value="radio" <?php selected(isset($column['type']) ? $column['type'] : 'radio', 'radio'); ?>>Radio Button</option>
+                                                                        <option value="checkbox" <?php selected(isset($column['type']) ? $column['type'] : 'radio', 'checkbox'); ?>>Checkbox</option>
+                                                                        <option value="dropdown" <?php selected(isset($column['type']) ? $column['type'] : 'radio', 'dropdown'); ?>>Dropdown</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th scope="row"><label>Populate from Taxonomy:</label></th>
+                                                                <td>
+                                                                    <select class="column-taxonomy">
+                                                                        <option value="">Manual Options</option>
+                                                                        <?php foreach ($available_taxonomies as $type => $taxonomy) : ?>
+                                                                            <option value="<?php echo esc_attr($type); ?>"
+                                                                                <?php selected(isset($column['taxonomy']) ? $column['taxonomy'] : '', $type); ?>>
+                                                                                <?php echo esc_html($taxonomy->get_display_name()); ?>
+                                                                            </option>
+                                                                        <?php endforeach; ?>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                        </table>
 
-                                                            <p>
-                                                                <label>Populate from Taxonomy:</label>
-                                                                <select class="column-taxonomy">
-                                                                    <option value="">Manual Options</option>
-                                                                    <?php foreach ($available_taxonomies as $type => $taxonomy) : ?>
-                                                                        <option value="<?php echo esc_attr($type); ?>"
-                                                                            <?php selected(isset($column['taxonomy']) ? $column['taxonomy'] : '', $type); ?>>
-                                                                            <?php echo esc_html($taxonomy->get_display_name()); ?>
-                                                                        </option>
-                                                                    <?php endforeach; ?>
-                                                                </select>
-                                                            </p>
-
-                                                            <div class="column-options">
-                                                                <p><strong>Options:</strong></p>
-                                                                <div class="options-container" data-sortable="options">
-                                                                    <?php if (isset($column['options']) && is_array($column['options'])) : ?>
-                                                                        <?php foreach ($column['options'] as $option_value => $option_label) : ?>
+                                                        <div class="column-options">
+                                                            <p><strong>Options:</strong></p>
+                                                            <div class="options-container" data-sortable="options">
+                                                                <?php if (isset($column['options']) && is_array($column['options'])) : ?>
+                                                                    <?php foreach ($column['options'] as $option) : ?>
+                                                                        <?php if (is_array($option)) : ?>
                                                                             <div class="column-option">
                                                                                 <span class="option-drag-handle">⋮</span>
-                                                                                <input type="text" value="<?php echo esc_attr($option_value); ?>" class="option-value small-text" placeholder="Value">
-                                                                                <input type="text" value="<?php echo esc_attr($option_label); ?>" class="option-label regular-text" placeholder="Label">
+                                                                                <input type="text" value="<?php echo esc_attr($option['value']); ?>" class="option-value small-text" placeholder="Value">
+                                                                                <input type="text" value="<?php echo esc_attr($option['label']); ?>" class="option-label regular-text" placeholder="Label">
                                                                                 <button type="button" class="button remove-option">Remove</button>
                                                                             </div>
-                                                                        <?php endforeach; ?>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                                <button type="button" class="button add-option">Add Option</button>
+                                                                        <?php else : ?>
+                                                                            <!-- Backward compatibility for old object format -->
+                                                                            <div class="column-option">
+                                                                                <span class="option-drag-handle">⋮</span>
+                                                                                <input type="text" value="<?php echo esc_attr($option); ?>" class="option-value small-text" placeholder="Value">
+                                                                                <input type="text" value="<?php echo esc_attr($column['options'][$option]); ?>" class="option-label regular-text" placeholder="Label">
+                                                                                <button type="button" class="button remove-option">Remove</button>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                    <?php endforeach; ?>
+                                                                <?php endif; ?>
                                                             </div>
-
-                                                            <p>
-                                                                <button type="button" class="button button-small remove-column">Remove Column</button>
-                                                            </p>
+                                                            <button type="button" class="button add-option">Add Option</button>
                                                         </div>
-                                                    <?php endforeach; ?>
-                                                <?php endif; ?>
-                                            </div>
 
-                                            <button type="button" class="button add-column">Add Column</button>
+                                                        <p>
+                                                            <button type="button" class="button button-small remove-column">Remove Column</button>
+                                                        </p>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
                                         </div>
-                                    <?php elseif ($step['type'] === 'dropdown') : ?>
-                                        <div class="step-dropdown">
-                                            <h4>Dropdown Options</h4>
 
-                                            <p>
-                                                <label>Populate from Taxonomy:</label>
-                                                <select class="dropdown-taxonomy">
-                                                    <option value="">Manual Options</option>
-                                                    <?php foreach ($available_taxonomies as $type => $taxonomy) : ?>
-                                                        <option value="<?php echo esc_attr($type); ?>"
-                                                            <?php selected(isset($step['taxonomy']) ? $step['taxonomy'] : '', $type); ?>>
-                                                            <?php echo esc_html($taxonomy->get_display_name()); ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </p>
-
-                                            <div class="dropdown-options">
-                                                <p><strong>Options:</strong></p>
-                                                <div class="dropdown-options-container" data-sortable="dropdown-options">
-                                                    <?php if (isset($step['options']) && is_array($step['options'])) : ?>
-                                                        <?php foreach ($step['options'] as $option_value => $option_label) : ?>
-                                                            <div class="dropdown-option">
-                                                                <span class="option-drag-handle">⋮</span>
-                                                                <input type="text" value="<?php echo esc_attr($option_value); ?>" class="option-value small-text" placeholder="Value">
-                                                                <input type="text" value="<?php echo esc_attr($option_label); ?>" class="option-label regular-text" placeholder="Label">
-                                                                <button type="button" class="button remove-dropdown-option">Remove</button>
-                                                            </div>
-                                                        <?php endforeach; ?>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <button type="button" class="button add-dropdown-option">Add Option</button>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
+                                        <button type="button" class="button add-column">Add Column</button>
+                                    </div>
 
                                     <p>
                                         <button type="button" class="button button-small remove-step">Remove Step</button>
@@ -184,31 +163,32 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
             $('.form-step').each(function(stepIndex) {
                 const step = {
                     title: $(this).find('.step-title').val(),
-                    type: $(this).find('.step-type').val()
+                    columns: []
                 };
 
-                if (step.type === 'radio_columns' || step.type === 'checkbox_columns') {
-                    step.columns = [];
+                $(this).find('.step-column').each(function(columnIndex) {
+                    const column = {
+                        header: $(this).find('.column-header').val(),
+                        type: $(this).find('.column-type').val(),
+                        taxonomy: $(this).find('.column-taxonomy').val() || null,
+                        options: [] // Changed to array to preserve order
+                    };
 
-                    $(this).find('.step-column').each(function(columnIndex) {
-                        const column = {
-                            header: $(this).find('.column-header').val(),
-                            taxonomy: $(this).find('.column-taxonomy').val() || null,
-                            options: {}
-                        };
+                    // Collect options in the order they appear in the DOM
+                    $(this).find('.column-option').each(function() {
+                        const optionValue = $(this).find('.option-value').val();
+                        const optionLabel = $(this).find('.option-label').val();
 
-                        $(this).find('.column-option').each(function() {
-                            const optionValue = $(this).find('.option-value').val();
-                            const optionLabel = $(this).find('.option-label').val();
-
-                            if (optionValue && optionLabel) {
-                                column.options[optionValue] = optionLabel;
-                            }
-                        });
-
-                        step.columns.push(column);
+                        if (optionValue && optionLabel) {
+                            column.options.push({
+                                value: optionValue,
+                                label: optionLabel
+                            });
+                        }
                     });
-                }
+
+                    step.columns.push(column);
+                });
 
                 steps.push(step);
             });
@@ -228,7 +208,7 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
             // Clear existing options
             $optionsContainer.find(isDropdown ? '.dropdown-option' : '.column-option').remove();
 
-            // Add taxonomy items as options
+            // Add taxonomy items as options IN THEIR ORIGINAL ORDER (no sorting)
             availableTaxonomies[taxonomyType].items.forEach(item => {
                 const dragHandle = isDropdown ? 'option-drag-handle' : 'option-drag-handle';
                 const optionClass = isDropdown ? 'dropdown-option' : 'column-option';
@@ -314,16 +294,6 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
                             <input type="text" id="step-${stepIndex}-title" value="New Step" class="step-title regular-text">
                         </td>
                     </tr>
-                    <tr>
-                        <th scope="row"><label for="step-${stepIndex}-type">Step Type</label></th>
-                        <td>
-                            <select id="step-${stepIndex}-type" class="step-type">
-                                <option value="radio_columns">Radio Button</option>
-                                <option value="checkbox_columns">Checkbox</option>
-                                <option value="dropdown">Dropdown</option>
-                            </select>
-                        </td>
-                    </tr>
                 </table>
                 
                 <div class="step-columns">
@@ -354,10 +324,17 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
         });
 
         // Add column
-        $(document).on('click', '.add-column', function() {
+        $(document).on('click', '.add-column', function(e) {
+            e.preventDefault();
+            console.log('Add column clicked'); // Debug log
+
             const $step = $(this).closest('.form-step');
             const $columnsContainer = $step.find('.columns-container');
-            const columnIndex = $step.find('.step-column').length;
+            const columnIndex = $columnsContainer.find('.step-column').length;
+
+            console.log('Step found:', $step.length); // Debug log
+            console.log('Columns container found:', $columnsContainer.length); // Debug log
+            console.log('Current column count:', columnIndex); // Debug log
 
             const taxonomyOptions = Object.keys(availableTaxonomies).map(type =>
                 `<option value="${type}">${availableTaxonomies[type].name}</option>`
@@ -370,18 +347,33 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
                     <h5>Column ${columnIndex + 1}</h5>
                 </div>
                 
-                <p>
-                    <label>Column Header:</label>
-                    <input type="text" value="New Column" class="column-header regular-text">
-                </p>
-                
-                <p>
-                    <label>Populate from Taxonomy:</label>
-                    <select class="column-taxonomy">
-                        <option value="">Manual Options</option>
-                        ${taxonomyOptions}
-                    </select>
-                </p>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label>Column Header:</label></th>
+                        <td>
+                            <input type="text" value="New Column" class="column-header regular-text">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label>Input Type:</label></th>
+                        <td>
+                            <select class="column-type">
+                                <option value="radio">Radio Button</option>
+                                <option value="checkbox">Checkbox</option>
+                                <option value="dropdown">Dropdown</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label>Populate from Taxonomy:</label></th>
+                        <td>
+                            <select class="column-taxonomy">
+                                <option value="">Manual Options</option>
+                                ${taxonomyOptions}
+                            </select>
+                        </td>
+                    </tr>
+                </table>
                 
                 <div class="column-options">
                     <p><strong>Options:</strong></p>
@@ -403,6 +395,7 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
         `;
 
             $columnsContainer.append(columnHtml);
+            console.log('Column added'); // Debug log
             initializeSortable();
             updateFormStepsJson();
         });
@@ -505,7 +498,7 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
             ).join('');
 
             // Add appropriate content based on step type
-            if (stepType === 'radio_columns' || stepType === 'checkbox_columns') {
+            if (stepType === 'radio_columns' || stepType === 'checkbox_columns' || stepType === 'dropdown') {
                 const columnsHtml = `
                     <div class="step-columns">
                         <h4>Columns</h4>
@@ -517,32 +510,9 @@ $available_taxonomies = $taxonomy_manager->get_all_taxonomies();
                 `;
 
                 $(this).closest('table').after(columnsHtml);
-            } else if (stepType === 'dropdown') {
-                const dropdownHtml = `
-                    <div class="step-dropdown">
-                        <h4>Dropdown Options</h4>
-                        
-                        <p>
-                            <label>Populate from Taxonomy:</label>
-                            <select class="dropdown-taxonomy">
-                                <option value="">Manual Options</option>
-                                ${taxonomyOptions}
-                            </select>
-                        </p>
-
-                        <div class="dropdown-options">
-                            <p><strong>Options:</strong></p>
-                            <div class="dropdown-options-container" data-sortable="dropdown-options">
-                                <!-- Options will be added here -->
-                            </div>
-                            <button type="button" class="button add-dropdown-option">Add Option</button>
-                        </div>
-                    </div>
-                `;
-
-                $(this).closest('table').after(dropdownHtml);
             }
 
+            // Reinitialize sortable and update JSON
             initializeSortable();
             updateFormStepsJson();
         });

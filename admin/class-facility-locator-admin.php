@@ -20,8 +20,7 @@ class Facility_Locator_Admin
         // Ensure tables exist
         $this->maybe_create_tables();
 
-        // Register AJAX actions
-        $this->register_ajax_actions();
+        // AJAX actions are hooked via Facility_Locator_Loader
     }
 
     /**

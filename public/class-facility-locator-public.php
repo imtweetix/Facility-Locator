@@ -1,7 +1,8 @@
 <?php
 
 /**
- * The public-facing functionality with taxonomy support
+ * The public-facing functionality with performance optimization
+ * Includes external CSS/JS loading and caching improvements
  */
 class Facility_Locator_Public
 {
@@ -19,27 +20,90 @@ class Facility_Locator_Public
     }
 
     /**
-     * Register the stylesheets for the public-facing side of the site
+     * Register the stylesheets for the public-facing side with optimization
      */
     public function enqueue_styles()
     {
-        wp_enqueue_style($this->plugin_name, FACILITY_LOCATOR_URL . 'public/css/facility-locator-public.css', array(), $this->version, 'all');
+        // Main public CSS
+        wp_enqueue_style(
+            $this->plugin_name,
+            FACILITY_LOCATOR_URL . 'public/css/facility-locator-public.css',
+            array(),
+            $this->version,
+            'all'
+        );
+
+        // Frontend-specific CSS with modern styling
+        wp_enqueue_style(
+            $this->plugin_name . '-frontend',
+            FACILITY_LOCATOR_URL . 'public/css/facility-locator-frontend.css',
+            array($this->plugin_name),
+            $this->version,
+            'all'
+        );
     }
 
     /**
-     * Register the JavaScript for the public-facing side of the site
+     * Register the JavaScript for the public-facing side with performance optimization
      */
     public function enqueue_scripts()
     {
-        wp_enqueue_script($this->plugin_name, FACILITY_LOCATOR_URL . 'public/js/facility-locator-public.js', array('jquery'), $this->version, false);
+        // Main public JavaScript
+        wp_enqueue_script(
+            $this->plugin_name,
+            FACILITY_LOCATOR_URL . 'public/js/facility-locator-public.js',
+            array('jquery'),
+            $this->version,
+            false
+        );
 
-        // Google Maps API
+        // Google Maps API with performance optimization
         $api_key = get_option('facility_locator_google_maps_api_key', '');
         if (!empty($api_key)) {
-            wp_enqueue_script('google-maps', "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=places", array(), null, true);
+            wp_enqueue_script(
+                'google-maps',
+                "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=places",
+                array(),
+                null,
+                true
+            );
+
+            // Add MarkerClusterer library for performance
+            wp_enqueue_script(
+                'marker-clusterer',
+                'https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js',
+                array('google-maps'),
+                null,
+                true
+            );
         }
 
-        // Get available taxonomies for form configuration
+        // Get available taxonomies for form configuration with caching
+        $available_taxonomies = $this->get_cached_available_taxonomies();
+
+        // Localize script with optimized data
+        wp_localize_script($this->plugin_name, 'facilityLocator', array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('facility_locator_public_nonce'),
+            'settings' => $this->get_cached_settings(),
+            'formSteps' => $this->get_cached_form_steps(),
+            'availableTaxonomies' => $available_taxonomies,
+        ));
+    }
+
+    /**
+     * Get cached available taxonomies for better performance
+     */
+    private function get_cached_available_taxonomies()
+    {
+        // Use transient cache for frontend data
+        $cache_key = 'facility_locator_available_taxonomies';
+        $cached_taxonomies = get_transient($cache_key);
+
+        if ($cached_taxonomies !== false) {
+            return $cached_taxonomies;
+        }
+
         $available_taxonomies = array();
         $all_taxonomies = $this->taxonomy_manager->get_all_taxonomies();
 
@@ -57,23 +121,54 @@ class Facility_Locator_Public
             );
         }
 
-        // Localize script
-        wp_localize_script($this->plugin_name, 'facilityLocator', array(
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('facility_locator_public_nonce'),
-            'settings' => array(
+        // Cache for 30 minutes
+        set_transient($cache_key, $available_taxonomies, 1800);
+
+        return $available_taxonomies;
+    }
+
+    /**
+     * Get cached settings for better performance
+     */
+    private function get_cached_settings()
+    {
+        static $cached_settings = null;
+
+        if ($cached_settings === null) {
+            $cached_settings = array(
                 'mapZoom' => get_option('facility_locator_map_zoom', 10),
                 'mapHeight' => get_option('facility_locator_map_height', 500),
                 'ctaText' => get_option('facility_locator_cta_text', 'Find a Facility'),
                 'ctaColor' => get_option('facility_locator_cta_color', '#007bff'),
-            ),
-            'formSteps' => json_decode(get_option('facility_locator_form_steps', '[]')),
-            'availableTaxonomies' => $available_taxonomies,
-        ));
+            );
+        }
+
+        return $cached_settings;
     }
 
     /**
-     * Shortcode output
+     * Get cached form steps for better performance
+     */
+    private function get_cached_form_steps()
+    {
+        // Use transient cache for form steps
+        $cache_key = 'facility_locator_form_steps';
+        $cached_steps = get_transient($cache_key);
+
+        if ($cached_steps !== false) {
+            return $cached_steps;
+        }
+
+        $form_steps = json_decode(get_option('facility_locator_form_steps', '[]'), true);
+
+        // Cache for 1 hour
+        set_transient($cache_key, $form_steps, 3600);
+
+        return $form_steps;
+    }
+
+    /**
+     * Shortcode output with performance optimization
      */
     public function shortcode_output($atts)
     {
@@ -83,9 +178,8 @@ class Facility_Locator_Public
 
         $id = sanitize_html_class($atts['id']);
 
-        // Get settings
-        $cta_text = get_option('facility_locator_cta_text', 'Find a Facility');
-        $cta_color = get_option('facility_locator_cta_color', '#007bff');
+        // Get cached settings
+        $settings = $this->get_cached_settings();
 
         // Start output buffering
         ob_start();
@@ -95,8 +189,8 @@ class Facility_Locator_Public
             'public/public-template.php',
             array(
                 'id' => $id,
-                'cta_text' => $cta_text,
-                'cta_color' => $cta_color,
+                'cta_text' => $settings['ctaText'],
+                'cta_color' => $settings['ctaColor'],
             )
         );
 
@@ -105,20 +199,25 @@ class Facility_Locator_Public
     }
 
     /**
-     * AJAX handler for getting facilities
+     * AJAX handler for getting facilities with performance optimization
      */
     public function ajax_get_facilities()
     {
+        // Performance: Clean output buffer before AJAX response
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
         // Verify nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'facility_locator_public_nonce')) {
             wp_send_json_error('Invalid nonce');
             return;
         }
 
-        // Get form data
+        // Get form data with validation
         $form_data = isset($_POST['form_data']) ? $_POST['form_data'] : array();
 
-        // Extract filter criteria for all taxonomies
+        // Extract filter criteria for all taxonomies with validation
         $filter_criteria = array();
         $taxonomy_types = $this->taxonomy_manager->get_taxonomy_types();
 
@@ -128,13 +227,13 @@ class Facility_Locator_Public
             }
         }
 
-        // Get facilities
+        // Get facilities with caching
         $facilities = $this->facilities->get_facilities($filter_criteria);
 
-        // Get all available taxonomy options for filter dropdowns
-        $all_taxonomies = $this->taxonomy_manager->get_all_for_filters();
+        // Get all available taxonomy options for filter dropdowns with caching
+        $all_taxonomies = $this->facilities->get_taxonomy_filters();
 
-        // Format response
+        // Format response with optimized structure
         $response = array(
             'facilities' => $facilities,
             'filters' => $all_taxonomies,
@@ -142,5 +241,20 @@ class Facility_Locator_Public
 
         // Send response
         wp_send_json_success($response);
+
+        wp_die(); // Performance: Ensure clean AJAX termination
+    }
+
+    /**
+     * Clear frontend caches when needed
+     */
+    public function clear_frontend_caches()
+    {
+        delete_transient('facility_locator_available_taxonomies');
+        delete_transient('facility_locator_form_steps');
+
+        if (WP_DEBUG) {
+            error_log('Facility Locator: Frontend caches cleared');
+        }
     }
 }

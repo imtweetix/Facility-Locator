@@ -1,7 +1,8 @@
 <?php
 
 /**
- * The admin-specific functionality with full taxonomy support
+ * The admin-specific functionality with performance optimization
+ * Includes external script loading and caching improvements
  */
 class Facility_Locator_Admin
 {
@@ -19,35 +20,19 @@ class Facility_Locator_Admin
 
         // Ensure tables exist
         $this->maybe_create_tables();
-
-        // AJAX actions are hooked via Facility_Locator_Loader
     }
 
     /**
-     * Register all AJAX actions
-     */
-    private function register_ajax_actions()
-    {
-        // Facility AJAX actions
-        add_action('wp_ajax_save_facility', array($this, 'ajax_save_facility'));
-        add_action('wp_ajax_delete_facility', array($this, 'ajax_delete_facility'));
-
-        // Taxonomy AJAX actions
-        $taxonomy_types = $this->taxonomy_manager->get_taxonomy_types();
-        foreach ($taxonomy_types as $type) {
-            add_action('wp_ajax_save_taxonomy_' . $type, array($this, 'ajax_save_taxonomy'));
-            add_action('wp_ajax_delete_taxonomy_' . $type, array($this, 'ajax_delete_taxonomy'));
-        }
-    }
-
-    /**
-     * Create tables if they don't exist
+     * Create tables if they don't exist with improved error handling
      */
     private function maybe_create_tables()
     {
         global $wpdb;
 
+        $facilities_table = $wpdb->prefix . 'facility_locator_facilities';
         $taxonomies_table = $wpdb->prefix . 'facility_locator_taxonomies';
+
+        $facilities_exists = $wpdb->get_var("SHOW TABLES LIKE '$facilities_table'");
         $taxonomies_exists = $wpdb->get_var("SHOW TABLES LIKE '$taxonomies_table'");
 
         if (!$taxonomies_exists) {
@@ -56,6 +41,28 @@ class Facility_Locator_Admin
             }
             Facility_Locator_Base_Taxonomy::create_table();
         }
+
+        if (!$facilities_exists) {
+            if (WP_DEBUG) {
+                error_log('Facility Locator: Creating facilities table');
+            }
+            Facility_Locator_Facilities::create_table();
+        }
+
+        // Verify tables were created
+        $facilities_exists_after = $wpdb->get_var("SHOW TABLES LIKE '$facilities_table'");
+        $taxonomies_exists_after = $wpdb->get_var("SHOW TABLES LIKE '$taxonomies_table'");
+
+        if (!$facilities_exists_after || !$taxonomies_exists_after) {
+            if (WP_DEBUG) {
+                error_log('Facility Locator: Table creation failed - facilities: ' . ($facilities_exists_after ? 'OK' : 'FAILED') . ', taxonomies: ' . ($taxonomies_exists_after ? 'OK' : 'FAILED'));
+            }
+
+            // Show admin notice
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p><strong>Facility Locator:</strong> Database tables could not be created. Please check your database permissions or contact your administrator.</p></div>';
+            });
+        }
     }
 
     /**
@@ -63,27 +70,51 @@ class Facility_Locator_Admin
      */
     public function enqueue_styles()
     {
-        wp_enqueue_style($this->plugin_name, FACILITY_LOCATOR_URL . 'admin/css/facility-locator-admin.css', array(), $this->version, 'all');
+        wp_enqueue_style(
+            $this->plugin_name,
+            FACILITY_LOCATOR_URL . 'admin/css/facility-locator-admin.css',
+            array(),
+            $this->version,
+            'all'
+        );
     }
 
     /**
-     * Register the JavaScript for the admin area
+     * Register the JavaScript for the admin area with performance optimization
      */
     public function enqueue_scripts()
     {
         $current_screen = get_current_screen();
 
-        wp_enqueue_script($this->plugin_name, FACILITY_LOCATOR_URL . 'admin/js/facility-locator-admin.js', array('jquery'), $this->version, false);
+        // Base admin script for all admin pages
+        wp_enqueue_script(
+            $this->plugin_name,
+            FACILITY_LOCATOR_URL . 'admin/js/facility-locator-admin.js',
+            array('jquery'),
+            $this->version,
+            false
+        );
 
         // Enqueue WordPress media uploader on facility and settings pages
         if ($current_screen && (strpos($current_screen->id, 'facility-locator') !== false)) {
             wp_enqueue_media();
         }
 
-        // Only load Google Maps on facility pages
-        if ($current_screen && (strpos($current_screen->id, 'facility-locator') !== false)) {
+        // Load Google Maps and facility form script only on facility pages
+        if ($current_screen && $this->is_facility_form_page($current_screen)) {
             $api_key = get_option('facility_locator_google_maps_api_key', '');
+
             if (!empty($api_key)) {
+                // Enqueue facility form specific script
+                wp_enqueue_script(
+                    $this->plugin_name . '-facility-form',
+                    FACILITY_LOCATOR_URL . 'admin/js/facility-locator-facility-form.js',
+                    array('jquery'),
+                    $this->version,
+                    false
+                );
+
+                // Enqueue Google Maps with callback
                 $google_maps_url = add_query_arg(array(
                     'key' => $api_key,
                     'libraries' => 'places',
@@ -91,7 +122,13 @@ class Facility_Locator_Admin
                     'v' => 'weekly'
                 ), 'https://maps.googleapis.com/maps/api/js');
 
-                wp_enqueue_script('google-maps-admin', $google_maps_url, array(), null, false);
+                wp_enqueue_script(
+                    'google-maps-admin',
+                    $google_maps_url,
+                    array($this->plugin_name . '-facility-form'),
+                    null,
+                    false
+                );
 
                 if (WP_DEBUG) {
                     error_log('Facility Locator: Loading Google Maps with URL: ' . $google_maps_url);
@@ -107,17 +144,27 @@ class Facility_Locator_Admin
             }
         }
 
-        // Localize script
+        // Localize script with optimized data
         wp_localize_script($this->plugin_name, 'facilityLocator', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('facility_locator_nonce'),
-            'hasApiKey' => !empty($api_key),
+            'hasApiKey' => !empty($api_key ?? ''),
             'debugMode' => WP_DEBUG ? true : false,
+            'currentScreen' => $current_screen ? $current_screen->id : '',
         ));
     }
 
     /**
-     * Add menu items
+     * Check if current page is a facility form page
+     */
+    private function is_facility_form_page($screen)
+    {
+        return strpos($screen->id, 'facility-locator-add-new') !== false ||
+            (strpos($screen->id, 'facility-locator') !== false && isset($_GET['id']));
+    }
+
+    /**
+     * Add menu items with improved error handling
      */
     public function add_admin_menu()
     {
@@ -149,13 +196,21 @@ class Facility_Locator_Admin
             array($this, 'display_add_facility_page')
         );
 
-        // Add taxonomy submenus
-        $taxonomies = $this->taxonomy_manager->get_all_taxonomies();
-        foreach ($taxonomies as $type => $taxonomy) {
+        // Always add taxonomy submenus regardless of content
+        $taxonomy_definitions = array(
+            'levels_of_care' => 'Levels of Care',
+            'features' => 'Features',
+            'therapies' => 'Therapies',
+            'environment' => 'Environment',
+            'location' => 'Location',
+            'insurance_providers' => 'Insurance Providers'
+        );
+
+        foreach ($taxonomy_definitions as $type => $display_name) {
             add_submenu_page(
                 'facility-locator',
-                $taxonomy->get_display_name(),
-                $taxonomy->get_display_name(),
+                $display_name,
+                $display_name,
                 'manage_options',
                 'facility-locator-' . str_replace('_', '-', $type),
                 array($this, 'display_taxonomy_page')
@@ -179,6 +234,214 @@ class Facility_Locator_Admin
             'facility-locator-settings',
             array($this, 'display_settings_page')
         );
+
+        // Add debug menu in development
+        if (WP_DEBUG) {
+            add_submenu_page(
+                'facility-locator',
+                'Debug',
+                'Debug',
+                'manage_options',
+                'facility-locator-debug',
+                array($this, 'display_debug_page')
+            );
+        }
+    }
+
+    /**
+     * Debug page to help troubleshoot taxonomy issues
+     */
+    public function display_debug_page()
+    {
+        global $wpdb;
+
+        echo '<div class="wrap">';
+        echo '<h1>Facility Locator Debug</h1>';
+
+        // Check if taxonomy classes exist
+        echo '<h2>Taxonomy Classes</h2>';
+        $taxonomy_classes = array(
+            'levels_of_care' => 'Facility_Locator_Levels_Of_Care',
+            'features' => 'Facility_Locator_Features',
+            'therapies' => 'Facility_Locator_Therapies',
+            'environment' => 'Facility_Locator_Environment',
+            'location' => 'Facility_Locator_Location',
+            'insurance_providers' => 'Facility_Locator_Insurance_Providers'
+        );
+
+        foreach ($taxonomy_classes as $type => $class_name) {
+            $exists = class_exists($class_name);
+            echo '<p>' . $type . ' (' . $class_name . '): ' . ($exists ? '✅ EXISTS' : '❌ MISSING') . '</p>';
+
+            if ($exists) {
+                try {
+                    $instance = new $class_name();
+                    echo '<p>  → Instance creation: ✅ SUCCESS</p>';
+                } catch (Exception $e) {
+                    echo '<p>  → Instance creation: ❌ FAILED - ' . $e->getMessage() . '</p>';
+                }
+            }
+        }
+
+        // Check database tables
+        $facilities_table = $wpdb->prefix . 'facility_locator_facilities';
+        $taxonomies_table = $wpdb->prefix . 'facility_locator_taxonomies';
+
+        $facilities_exists = $wpdb->get_var("SHOW TABLES LIKE '$facilities_table'");
+        $taxonomies_exists = $wpdb->get_var("SHOW TABLES LIKE '$taxonomies_table'");
+
+        echo '<h2>Database Tables</h2>';
+        echo '<p>Facilities table: ' . ($facilities_exists ? '✅ EXISTS' : '❌ MISSING') . '</p>';
+        echo '<p>Taxonomies table: ' . ($taxonomies_exists ? '✅ EXISTS' : '❌ MISSING') . '</p>';
+
+        if ($taxonomies_exists) {
+            $count = $wpdb->get_var("SELECT COUNT(*) FROM $taxonomies_table");
+            echo '<p>Taxonomy items count: ' . $count . '</p>';
+
+            $types = $wpdb->get_results("SELECT taxonomy_type, COUNT(*) as count FROM $taxonomies_table GROUP BY taxonomy_type");
+            echo '<h3>Taxonomy Types:</h3>';
+            if (empty($types)) {
+                echo '<p>No taxonomy items found in database.</p>';
+            } else {
+                foreach ($types as $type) {
+                    echo '<p>' . $type->taxonomy_type . ': ' . $type->count . ' items</p>';
+                }
+            }
+        }
+
+        // Test taxonomy manager
+        echo '<h2>Taxonomy Manager Test</h2>';
+        try {
+            $taxonomy_manager = new Facility_Locator_Taxonomy_Manager();
+            $taxonomy_types = $taxonomy_manager->get_taxonomy_types();
+            echo '<p>Available taxonomy types: ' . implode(', ', $taxonomy_types) . '</p>';
+
+            foreach ($taxonomy_types as $type) {
+                echo '<h4>Testing: ' . $type . '</h4>';
+                try {
+                    $taxonomy = $taxonomy_manager->get_taxonomy($type);
+                    if ($taxonomy) {
+                        echo '<p>  → Taxonomy object: ✅ SUCCESS</p>';
+
+                        try {
+                            $items = $taxonomy->get_all();
+                            echo '<p>  → Get all items: ✅ SUCCESS (' . count($items) . ' items)</p>';
+                        } catch (Exception $e) {
+                            echo '<p>  → Get all items: ❌ FAILED - ' . $e->getMessage() . '</p>';
+                        }
+                    } else {
+                        echo '<p>  → Taxonomy object: ❌ NULL RETURNED</p>';
+                    }
+                } catch (Exception $e) {
+                    echo '<p>  → Taxonomy object: ❌ EXCEPTION - ' . $e->getMessage() . '</p>';
+                }
+            }
+        } catch (Exception $e) {
+            echo '<p>❌ Error: ' . $e->getMessage() . '</p>';
+        }
+
+        // Add manual table creation button
+        echo '<h2>Manual Actions</h2>';
+        echo '<form method="post">';
+        echo '<input type="hidden" name="action" value="create_tables">';
+        wp_nonce_field('facility_locator_debug');
+        echo '<input type="submit" class="button button-primary" value="Create Tables">';
+        echo '</form>';
+
+        echo '<br>';
+        echo '<form method="post">';
+        echo '<input type="hidden" name="action" value="test_taxonomy_creation">';
+        wp_nonce_field('facility_locator_debug');
+        echo '<input type="submit" class="button" value="Test Taxonomy Creation">';
+        echo '</form>';
+
+        // Handle form submission
+        if (isset($_POST['action']) && wp_verify_nonce($_POST['_wpnonce'], 'facility_locator_debug')) {
+            if ($_POST['action'] === 'create_tables') {
+                echo '<div class="notice notice-info"><p>Creating tables...</p></div>';
+                Facility_Locator_Base_Taxonomy::create_table();
+                Facility_Locator_Facilities::create_table();
+                echo '<div class="notice notice-success"><p>Tables created. Please refresh the page.</p></div>';
+            }
+
+            if ($_POST['action'] === 'test_taxonomy_creation') {
+                echo '<h3>Taxonomy Creation Test Results:</h3>';
+                foreach ($taxonomy_classes as $type => $class_name) {
+                    try {
+                        echo '<p><strong>Testing ' . $type . ':</strong></p>';
+                        $instance = new $class_name();
+                        echo '<p>  → Direct instantiation: ✅ SUCCESS</p>';
+
+                        // Test the get_all method
+                        try {
+                            $items = $instance->get_all();
+                            echo '<p>  → get_all() method: ✅ SUCCESS (returned ' . count($items) . ' items)</p>';
+                        } catch (Exception $e) {
+                            echo '<p>  → get_all() method: ❌ FAILED - ' . $e->getMessage() . '</p>';
+                        }
+
+                        // Test through taxonomy manager
+                        try {
+                            $tm = new Facility_Locator_Taxonomy_Manager();
+                            echo '<p>  → Taxonomy manager created: ✅ SUCCESS</p>';
+
+                            // Test debug method if available
+                            if (method_exists($tm, 'debug_get_taxonomy')) {
+                                $taxonomy_from_manager = $tm->debug_get_taxonomy($type);
+                            } else {
+                                $taxonomy_from_manager = $tm->get_taxonomy($type);
+                            }
+
+                            echo '<p>  → Via taxonomy manager: ' . ($taxonomy_from_manager ? '✅ SUCCESS' : '❌ NULL RETURNED') . '</p>';
+
+                            if ($taxonomy_from_manager) {
+                                echo '<p>  → Manager object class: ' . get_class($taxonomy_from_manager) . '</p>';
+                            } else {
+                                // Additional debugging
+                                $types = $tm->get_taxonomy_types();
+                                echo '<p>  → Manager has types: ' . implode(', ', $types) . '</p>';
+                                echo '<p>  → Looking for type: ' . $type . '</p>';
+                                echo '<p>  → Type exists in array: ' . (in_array($type, $types) ? 'YES' : 'NO') . '</p>';
+                            }
+                        } catch (Exception $e) {
+                            echo '<p>  → Via taxonomy manager: ❌ EXCEPTION - ' . $e->getMessage() . '</p>';
+                        }
+
+                        echo '<br>';
+                    } catch (Exception $e) {
+                        echo '<p>' . $type . ': ❌ Creation failed - ' . $e->getMessage() . '</p>';
+                    }
+                }
+            }
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * Get taxonomies with caching for admin menu
+     */
+    private function get_cached_taxonomies()
+    {
+        static $cached_taxonomies = null;
+
+        if ($cached_taxonomies === null) {
+            try {
+                $cached_taxonomies = $this->taxonomy_manager->get_all_taxonomies();
+
+                // Filter out any null taxonomies
+                $cached_taxonomies = array_filter($cached_taxonomies, function ($taxonomy) {
+                    return $taxonomy !== null;
+                });
+            } catch (Exception $e) {
+                if (WP_DEBUG) {
+                    error_log('Facility Locator: Error loading taxonomies: ' . $e->getMessage());
+                }
+                $cached_taxonomies = array();
+            }
+        }
+
+        return $cached_taxonomies;
     }
 
     /**
@@ -217,10 +480,11 @@ class Facility_Locator_Admin
     }
 
     /**
-     * Display main admin page
+     * Display main admin page with cached data
      */
     public function display_admin_page()
     {
+        // Use cached facilities for better performance
         $facilities = $this->facilities->get_facilities();
 
         include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-display.php';
@@ -235,6 +499,7 @@ class Facility_Locator_Admin
         $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
         if ($id > 0) {
+            // Use cached facility retrieval
             $facility = $this->facilities->get_facility($id);
         }
 
@@ -242,7 +507,7 @@ class Facility_Locator_Admin
     }
 
     /**
-     * Display taxonomy management page
+     * Display taxonomy management page with better error handling
      */
     public function display_taxonomy_page()
     {
@@ -251,21 +516,86 @@ class Facility_Locator_Admin
         $action = isset($_GET['action']) ? $_GET['action'] : 'list';
         $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-        $taxonomy = $this->taxonomy_manager->get_taxonomy($type);
-        if (!$taxonomy) {
-            echo '<div class="wrap"><h1>Invalid taxonomy type</h1></div>';
-            return;
+        if (WP_DEBUG) {
+            error_log("Facility Locator: Display taxonomy page - Page: {$page}, Type: {$type}, Action: {$action}");
         }
 
-        if ($action === 'edit' && $id > 0) {
-            $item = $taxonomy->get_by_id($id);
-            include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-taxonomy-form.php';
-        } elseif ($action === 'add') {
-            $item = null;
-            include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-taxonomy-form.php';
-        } else {
-            $items = $taxonomy->get_all();
-            include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-taxonomy-list.php';
+        // Ensure taxonomy manager and tables exist
+        try {
+            $this->maybe_create_tables();
+
+            if (WP_DEBUG) {
+                error_log("Facility Locator: Attempting to get taxonomy for type: {$type}");
+            }
+
+            $taxonomy = $this->taxonomy_manager->get_taxonomy($type);
+
+            if (WP_DEBUG) {
+                error_log("Facility Locator: Taxonomy object result: " . ($taxonomy ? 'SUCCESS' : 'NULL'));
+            }
+
+            if (!$taxonomy) {
+                echo '<div class="wrap">';
+                echo '<h1>Taxonomy Loading Issue</h1>';
+                echo '<div class="notice notice-warning">';
+                echo '<p>The taxonomy system is having trouble loading the <strong>' . esc_html($type) . '</strong> taxonomy.</p>';
+                echo '<p>This is likely a temporary issue. Please try the following:</p>';
+                echo '<ol>';
+                echo '<li>Check that the database tables were created properly</li>';
+                echo '<li>Try refreshing the page</li>';
+                echo '<li>Check the debug information below</li>';
+                echo '</ol>';
+                echo '</div>';
+
+                echo '<h2>Debug Information:</h2>';
+                echo '<p><strong>Page:</strong> ' . esc_html($page) . '</p>';
+                echo '<p><strong>Derived type:</strong> ' . esc_html($type) . '</p>';
+                echo '<p><strong>Action:</strong> ' . esc_html($action) . '</p>';
+
+                $available_types = $this->taxonomy_manager->get_taxonomy_types();
+                echo '<p><strong>Available taxonomy types:</strong> ' . implode(', ', $available_types) . '</p>';
+
+                // Test table existence
+                global $wpdb;
+                $table_name = $wpdb->prefix . 'facility_locator_taxonomies';
+                $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+                echo '<p><strong>Taxonomy table exists:</strong> ' . ($table_exists ? 'Yes' : 'No') . '</p>';
+
+                if ($table_exists) {
+                    $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE taxonomy_type = '" . esc_sql($type) . "'");
+                    echo '<p><strong>Items in this taxonomy:</strong> ' . $count . '</p>';
+                }
+
+                echo '<p><a href="' . admin_url('admin.php?page=facility-locator-debug') . '" class="button button-primary">Go to Debug Page</a></p>';
+                echo '</div>';
+                return;
+            }
+
+            if ($action === 'edit' && $id > 0) {
+                $item = $taxonomy->get_by_id($id);
+                include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-taxonomy-form.php';
+            } elseif ($action === 'add') {
+                $item = null;
+                include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-taxonomy-form.php';
+            } else {
+                $items = $taxonomy->get_all();
+                include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-taxonomy-list.php';
+            }
+        } catch (Exception $e) {
+            echo '<div class="wrap">';
+            echo '<h1>Error Loading Taxonomy</h1>';
+            echo '<div class="notice notice-error"><p><strong>Error:</strong> ' . esc_html($e->getMessage()) . '</p></div>';
+
+            echo '<h2>Debug Information:</h2>';
+            echo '<p><strong>Type:</strong> ' . esc_html($type) . '</p>';
+            echo '<p><strong>Page:</strong> ' . esc_html($page) . '</p>';
+            echo '<p><strong>Action:</strong> ' . esc_html($action) . '</p>';
+            echo '<p><strong>Exception:</strong> ' . esc_html($e->getMessage()) . '</p>';
+            echo '<p><strong>File:</strong> ' . esc_html($e->getFile()) . '</p>';
+            echo '<p><strong>Line:</strong> ' . esc_html($e->getLine()) . '</p>';
+
+            echo '<p><a href="' . admin_url('admin.php?page=facility-locator-debug') . '" class="button">Go to Debug Page</a></p>';
+            echo '</div>';
         }
     }
 
@@ -286,13 +616,17 @@ class Facility_Locator_Admin
     }
 
     /**
-     * AJAX handler for saving a facility
+     * AJAX handler for saving a facility with performance optimization
      */
     public function ajax_save_facility()
     {
+        // Performance: Clean output buffer before AJAX response
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
         if (WP_DEBUG) {
             error_log('Facility Locator: AJAX save facility called');
-            error_log('POST data: ' . print_r($_POST, true));
         }
 
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'facility_locator_nonce')) {
@@ -324,7 +658,6 @@ class Facility_Locator_Admin
 
         if (WP_DEBUG) {
             error_log('Facility Locator: Saving facility with ID: ' . $id);
-            error_log('Facility data: ' . print_r($data, true));
         }
 
         try {
@@ -361,6 +694,8 @@ class Facility_Locator_Admin
             }
             wp_send_json_error('Exception occurred: ' . $e->getMessage());
         }
+
+        wp_die(); // Performance: Ensure clean AJAX termination
     }
 
     /**
@@ -368,6 +703,10 @@ class Facility_Locator_Admin
      */
     public function ajax_delete_facility()
     {
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'facility_locator_nonce')) {
             wp_send_json_error('Invalid nonce');
             return;
@@ -393,10 +732,12 @@ class Facility_Locator_Admin
         } else {
             wp_send_json_error('Invalid facility ID');
         }
+
+        wp_die();
     }
 
     /**
-     * AJAX handler for saving taxonomy items
+     * AJAX handler for saving taxonomy items with performance optimization
      */
     public function ajax_save_taxonomy()
     {
@@ -462,6 +803,10 @@ class Facility_Locator_Admin
      */
     public function ajax_delete_taxonomy()
     {
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'facility_locator_nonce')) {
             wp_send_json_error('Invalid nonce');
             return;
@@ -495,5 +840,7 @@ class Facility_Locator_Admin
         } else {
             wp_send_json_error('Invalid ID');
         }
+
+        wp_die();
     }
 }

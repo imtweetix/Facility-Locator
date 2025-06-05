@@ -170,7 +170,7 @@
             $('<input>')
               .attr({
                 type: 'checkbox',
-                name: 'program_features[]',
+                name: 'features[]',
                 value: newFeature,
               })
               .prop('checked', true)

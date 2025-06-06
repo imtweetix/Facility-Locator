@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Handle CRUD operations for facilities with new taxonomy system and caching
- * Performance optimized with multiple cache layers
+ * Handle CRUD operations for facilities with image gallery support and caching
+ * Updated to support multiple images per facility
  */
 class Facility_Locator_Facilities
 {
@@ -28,7 +28,7 @@ class Facility_Locator_Facilities
     }
 
     /**
-     * Create the database table on plugin activation
+     * Create the database table on plugin activation with images column
      */
     public static function create_table()
     {
@@ -47,6 +47,7 @@ class Facility_Locator_Facilities
             website varchar(255),
             taxonomies text,
             custom_pin_image varchar(255),
+            images text,
             description text,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
@@ -61,8 +62,23 @@ class Facility_Locator_Facilities
         // Create taxonomies table
         Facility_Locator_Base_Taxonomy::create_table();
 
+        // Check if images column exists, add if not (for existing installations)
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table_name}");
+        $has_images_column = false;
+
+        foreach ($columns as $column) {
+            if ($column->Field === 'images') {
+                $has_images_column = true;
+                break;
+            }
+        }
+
+        if (!$has_images_column) {
+            $wpdb->query("ALTER TABLE {$table_name} ADD COLUMN images text AFTER custom_pin_image");
+        }
+
         if (WP_DEBUG) {
-            error_log('Facility Locator: Tables creation completed');
+            error_log('Facility Locator: Tables creation completed with image gallery support');
         }
     }
 
@@ -93,13 +109,14 @@ class Facility_Locator_Facilities
         if (!empty($args)) {
             foreach ($args as $taxonomy_type => $taxonomy_ids) {
                 if (!empty($taxonomy_ids) && is_array($taxonomy_ids)) {
+                    // For multiple selections, use AND logic (facility must match ALL selected criteria)
                     $taxonomy_conditions = array();
                     foreach ($taxonomy_ids as $taxonomy_id) {
                         $taxonomy_conditions[] = "taxonomies LIKE %s";
                         $query_params[] = '%"' . $taxonomy_type . '"%' . intval($taxonomy_id) . '%';
                     }
                     if (!empty($taxonomy_conditions)) {
-                        $where_clauses[] = '(' . implode(' OR ', $taxonomy_conditions) . ')';
+                        $where_clauses[] = '(' . implode(' AND ', $taxonomy_conditions) . ')';
                     }
                 }
             }
@@ -164,14 +181,14 @@ class Facility_Locator_Facilities
     }
 
     /**
-     * Add a new facility with cache invalidation
+     * Add a new facility with image gallery support
      */
     public function add_facility($data)
     {
         global $wpdb;
 
         if (WP_DEBUG) {
-            error_log('Facility Locator: Adding new facility');
+            error_log('Facility Locator: Adding new facility with image gallery');
         }
 
         $prepared_data = $this->prepare_facility_data($data);
@@ -190,14 +207,14 @@ class Facility_Locator_Facilities
     }
 
     /**
-     * Update an existing facility with cache invalidation
+     * Update an existing facility with image gallery support
      */
     public function update_facility($id, $data)
     {
         global $wpdb;
 
         if (WP_DEBUG) {
-            error_log('Facility Locator: Updating facility ID: ' . $id);
+            error_log('Facility Locator: Updating facility ID: ' . $id . ' with image gallery');
         }
 
         $prepared_data = $this->prepare_facility_data($data);
@@ -260,7 +277,7 @@ class Facility_Locator_Facilities
     }
 
     /**
-     * Prepare facility data for database with validation
+     * Prepare facility data for database with image gallery support
      */
     private function prepare_facility_data($data)
     {
@@ -274,6 +291,17 @@ class Facility_Locator_Facilities
             'custom_pin_image' => isset($data['custom_pin_image']) ? esc_url_raw($data['custom_pin_image']) : '',
             'description' => isset($data['description']) ? wp_kses_post($data['description']) : '',
         );
+
+        // Handle images array
+        $images = array();
+        if (isset($data['images']) && is_array($data['images'])) {
+            foreach ($data['images'] as $image) {
+                if (!empty($image)) {
+                    $images[] = esc_url_raw($image);
+                }
+            }
+        }
+        $prepared['images'] = json_encode($images);
 
         // Handle taxonomies with validation
         $taxonomies = array();
@@ -294,7 +322,7 @@ class Facility_Locator_Facilities
     }
 
     /**
-     * Format facility data after retrieval from database with optimization
+     * Format facility data after retrieval from database with image gallery support
      */
     private function format_facility_data($facility)
     {
@@ -303,6 +331,13 @@ class Facility_Locator_Facilities
         if ($taxonomy_types === null) {
             $taxonomy_types = $this->taxonomy_manager->get_taxonomy_types();
         }
+
+        // Decode images
+        $images = json_decode($facility->images, true);
+        if (!is_array($images)) {
+            $images = array();
+        }
+        $facility->images = $images;
 
         // Decode taxonomies
         $taxonomies = json_decode($facility->taxonomies, true);

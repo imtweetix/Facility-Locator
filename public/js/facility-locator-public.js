@@ -1,6 +1,6 @@
 /**
  * Enhanced Frontend JavaScript for Recovery.com + Google Maps style interface
- * Pure jQuery with modern ES6 features
+ * Updated with image gallery support and improved pin functionality
  */
 (function ($) {
   'use strict';
@@ -180,18 +180,18 @@
       updateFilters($container, id);
     });
 
-    // Mobile sidebar swipe interactions for screens <= 768px
-    if ($(window).width() <= 768) {
+    // Mobile sidebar swipe interactions
+    if (window.innerWidth <= 768) {
       let startY = 0;
       let currentY = 0;
       let isDragging = false;
 
-      $(document).on('touchstart', '.sidebar-header', (e) => {
+      $(document).on('touchstart', '.sidebar-header', function (e) {
         startY = e.originalEvent.touches[0].clientY;
         isDragging = true;
       });
 
-      $(document).on('touchmove', '.sidebar-header', (e) => {
+      $(document).on('touchmove', '.sidebar-header', function (e) {
         if (!isDragging) return;
         currentY = e.originalEvent.touches[0].clientY;
         const diff = currentY - startY;
@@ -203,12 +203,12 @@
         }
       });
 
-      $(document).on('touchend', '.sidebar-header', () => {
+      $(document).on('touchend', '.sidebar-header', function () {
         isDragging = false;
       });
 
       // Tap to toggle sidebar
-      $(document).on('click', '.sidebar-header', () => {
+      $(document).on('click', '.sidebar-header', function () {
         $('.facility-locator-sidebar').toggleClass('open');
       });
     }

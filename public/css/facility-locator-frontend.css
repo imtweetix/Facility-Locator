@@ -1,23 +1,28 @@
 /**
  * Frontend CSS for Recovery.com + Google Maps style interface
- * Optimized for performance and mobile-first design
+ * Redesigned to match Recovery.com styling with Google Maps layout
  */
 
 /* Base Styles */
 .facility-locator-container {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   position: relative;
   width: 100%;
-  height: 100vh;
+  height: 600px;
+  min-height: 600px;
   overflow: hidden;
+  background: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* CTA Button */
+/* CTA Button - Initial State */
 .facility-locator-cta {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .facility-locator-cta-button {
@@ -29,37 +34,45 @@
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
 }
 
 .facility-locator-cta-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-/* Main Interface */
+/* Main Interface Layout */
 .facility-locator-main-interface {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Filter Bar */
+/* Sticky Filter Bar - Recovery.com Style */
 .facility-locator-filter-bar {
   position: sticky;
   top: 0;
   left: 0;
   right: 0;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #e1e5e9;
   z-index: 1000;
-  padding: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .filter-scroll-container {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -71,10 +84,11 @@
 .filter-items {
   display: flex;
   gap: 12px;
-  min-width: 0;
   flex: 1;
+  min-width: 0;
 }
 
+/* Recovery.com Style Dropdowns */
 .filter-dropdown {
   position: relative;
   flex-shrink: 0;
@@ -87,30 +101,35 @@
   padding: 10px 16px;
   background: white;
   border: 1px solid #d1d5db;
-  border-radius: 24px;
+  border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
   color: #374151;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .filter-dropdown-button:hover {
   border-color: #9ca3af;
   background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .filter-dropdown-button.active {
   background: #3b82f6;
   color: white;
   border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .filter-dropdown-arrow {
   width: 16px;
   height: 16px;
   transition: transform 0.2s ease;
+  opacity: 0.7;
 }
 
 .filter-dropdown.open .filter-dropdown-arrow {
@@ -119,23 +138,28 @@
 
 .filter-dropdown-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 8px);
   left: 0;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  min-width: 200px;
-  max-width: 300px;
+  min-width: 220px;
+  max-width: 320px;
   max-height: 500px;
   overflow-y: auto;
   z-index: 1001;
   display: none;
   margin-top: 4px;
+  transform: translateY(-8px);
+  opacity: 0;
+  transition: all 0.2s ease;
 }
 
 .filter-dropdown.open .filter-dropdown-menu {
   display: block;
+  transform: translateY(0);
+  opacity: 1;
 }
 
 .filter-option {
@@ -145,16 +169,28 @@
   padding: 12px 16px;
   cursor: pointer;
   transition: background 0.2s ease;
+  border-radius: 0;
+}
+
+.filter-option:first-child {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.filter-option:last-child {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 .filter-option:hover {
   background: #f3f4f6;
 }
 
-.filter-option input[type="checkbox"] {
+.filter-option input[type='checkbox'] {
   width: 18px;
   height: 18px;
   accent-color: #3b82f6;
+  border-radius: 4px;
 }
 
 .filter-option label {
@@ -162,6 +198,7 @@
   font-size: 14px;
   color: #374151;
   cursor: pointer;
+  line-height: 1.4;
 }
 
 .clear-all-filters {
@@ -170,38 +207,43 @@
   color: #6b7280;
   font-size: 14px;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: color 0.2s ease;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .clear-all-filters:hover {
   color: #374151;
+  background: #f3f4f6;
 }
 
 /* Map and Sidebar Container */
 .facility-locator-map-sidebar-container {
   display: flex;
-  height: calc(100vh - 80px);
+  flex: 1;
   position: relative;
+  height: calc(100% - 80px);
 }
 
-/* Sidebar */
+/* Sidebar - Recovery.com Style Cards */
 .facility-locator-sidebar {
   width: 360px;
   background: white;
-  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 999;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid #e5e7eb;
   background: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .results-count {
@@ -217,22 +259,27 @@
   padding: 0;
 }
 
-/* Facility Cards */
+/* Facility Cards - Recovery.com Style */
 .facility-card {
+  background: white;
   border-bottom: 1px solid #e5e7eb;
   padding: 20px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   position: relative;
 }
 
 .facility-card:hover {
-  background: #f9fafb;
+  background: #f8fafc;
+  transform: translateX(4px);
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.08);
 }
 
 .facility-card.highlighted {
   background: #eff6ff;
   border-left: 4px solid #3b82f6;
+  transform: translateX(0);
+  box-shadow: inset 4px 0 0 #3b82f6, 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
 .facility-card-header {
@@ -248,38 +295,43 @@
   color: #111827;
   margin: 0;
   line-height: 1.4;
+  flex: 1;
+  margin-right: 12px;
 }
 
 .facility-type {
-  background: #f3f4f6;
-  color: #6b7280;
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: #e0f2fe;
+  color: #0277bd;
+  padding: 4px 10px;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
 .facility-address {
   color: #6b7280;
   font-size: 14px;
-  margin-bottom: 12px;
-  line-height: 1.4;
+  margin-bottom: 16px;
+  line-height: 1.5;
 }
 
+/* Image Carousel - Recovery.com Style */
 .facility-image-carousel {
   position: relative;
   margin-bottom: 16px;
   border-radius: 8px;
   overflow: hidden;
   background: #f3f4f6;
+  height: 206px;
 }
 
 .carousel-container {
   position: relative;
   width: 100%;
-  height: 160px;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -304,19 +356,20 @@
 .carousel-placeholder {
   width: 100%;
   height: 100%;
-  background: #f3f4f6;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #9ca3af;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .carousel-nav {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   color: white;
   border: none;
   width: 32px;
@@ -326,44 +379,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   font-size: 14px;
+  opacity: 0;
+  backdrop-filter: blur(4px);
+}
+
+.facility-image-carousel:hover .carousel-nav {
+  opacity: 1;
 }
 
 .carousel-nav:hover {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-50%) scale(1.1);
 }
 
 .carousel-prev {
-  left: 8px;
+  left: 12px;
 }
 
 .carousel-next {
-  right: 8px;
+  right: 12px;
 }
 
 .carousel-indicators {
   position: absolute;
-  bottom: 8px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
 .carousel-indicator {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .carousel-indicator.active {
   background: white;
+  transform: scale(1.2);
 }
 
+/* Feature Tags - Recovery.com Style */
 .facility-features {
   margin-bottom: 16px;
 }
@@ -375,17 +437,20 @@
 }
 
 .feature-tag {
-  background: #eff6ff;
-  color: #1e40af;
-  padding: 4px 8px;
+  background: #f0f9ff;
+  color: #0369a1;
+  padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+  border: 1px solid #e0f2fe;
 }
 
+/* Action Buttons - Recovery.com Style */
 .facility-actions {
   display: flex;
   gap: 12px;
+  margin-top: 16px;
 }
 
 .facility-action-btn {
@@ -410,6 +475,8 @@
 .facility-action-btn:hover {
   border-color: #9ca3af;
   background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .facility-action-btn.primary {
@@ -420,33 +487,39 @@
 
 .facility-action-btn.primary:hover {
   background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
 }
 
 /* Map */
 .facility-locator-map-wrapper {
   flex: 1;
   position: relative;
+  background: #f3f4f6;
 }
 
 .facility-locator-map {
   width: 100%;
   height: 100%;
+  border: none;
 }
 
-/* Detailed Facility Modal */
+/* Detailed Facility Modal - Google Maps Style */
 .facility-detail-modal {
   position: fixed;
   top: 80px;
-  right: 0;
-  bottom: 0;
+  right: 20px;
+  bottom: 20px;
   width: 400px;
   background: white;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
-  transform: translateX(100%);
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateX(450px);
   transition: transform 0.3s ease;
   z-index: 1002;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .facility-detail-modal.open {
@@ -463,7 +536,7 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.9);
   border: none;
   width: 32px;
   height: 32px;
@@ -472,12 +545,90 @@
   font-size: 18px;
   color: #6b7280;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.facility-detail-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #374151;
 }
 
 .facility-detail-body {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+.facility-detail-header {
+  margin-bottom: 20px;
+}
+
+.facility-detail-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.facility-detail-type {
+  background: #e0f2fe;
+  color: #0277bd;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.facility-detail-info {
+  margin-top: 20px;
+}
+
+.facility-detail-section {
+  margin-bottom: 24px;
+}
+
+.facility-detail-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.facility-detail-section p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.facility-detail-section a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.facility-detail-section a:hover {
+  text-decoration: underline;
+}
+
+.facility-description {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.facility-detail-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* Mobile Filter Drawer */
@@ -508,6 +659,17 @@
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+.mobile-filter-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
 }
 
 .mobile-filter-close {
@@ -516,6 +678,16 @@
   font-size: 24px;
   color: #6b7280;
   cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.mobile-filter-close:hover {
+  background: #f3f4f6;
 }
 
 .mobile-filter-content {
@@ -524,11 +696,29 @@
   padding: 20px;
 }
 
+.mobile-filter-section {
+  margin-bottom: 24px;
+}
+
+.mobile-filter-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.mobile-filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .mobile-filter-footer {
   display: flex;
   gap: 12px;
   padding: 20px;
   border-top: 1px solid #e5e7eb;
+  background: white;
 }
 
 .apply-mobile-filters {
@@ -537,10 +727,15 @@
   color: white;
   border: none;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.apply-mobile-filters:hover {
+  background: #2563eb;
 }
 
 /* Form Popup Styles */
@@ -563,8 +758,8 @@
   padding: 30px;
   width: 80%;
   max-width: 800px;
-  border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 .facility-locator-popup-close {
@@ -583,6 +778,7 @@
   line-height: 30px;
   text-align: center;
   border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
 .facility-locator-popup-close:hover {
@@ -590,10 +786,15 @@
   background-color: #f0f0f0;
 }
 
-/* Mobile Styles */
+/* Mobile Responsive */
 @media (max-width: 768px) {
+  .facility-locator-container {
+    height: 100vh;
+    border-radius: 0;
+  }
+
   .facility-locator-filter-bar {
-    padding: 12px;
+    padding: 12px 16px;
   }
 
   .filter-items {
@@ -601,50 +802,419 @@
   }
 
   .mobile-filter-trigger {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     background: #3b82f6;
     color: white;
     border: none;
     padding: 10px 16px;
-    border-radius: 6px;
+    border-radius: 20px;
     font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  }
+
+  .facility-locator-map-sidebar-container {
+    height: calc(100% - 64px);
   }
 
   .facility-locator-sidebar {
     position: fixed;
-    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
-    bottom: 0;
     width: 100%;
+    height: 60%;
     z-index: 1001;
-    transform: translateY(100%);
+    transform: translateY(calc(100% - 80px));
     transition: transform 0.3s ease;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   }
 
   .facility-locator-sidebar.open {
     transform: translateY(0);
   }
 
-  .facility-detail-modal {
-    width: 100%;
-    top: 0;
-    right: 0;
+  .sidebar-header {
+    padding: 16px 20px;
+    position: relative;
+    cursor: pointer;
   }
 
-  .facility-locator-map-sidebar-container {
-    height: calc(100vh - 60px);
+  .sidebar-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background: #d1d5db;
+    border-radius: 2px;
+  }
+
+  .facility-detail-modal {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    border-radius: 0;
+    transform: translateY(100%);
+  }
+
+  .facility-detail-modal.open {
+    transform: translateY(0);
   }
 
   .facility-locator-map-wrapper {
     width: 100%;
+    height: 100%;
   }
 }
 
-/* Wide Screen Adjustments */
+/* Widescreen Adjustments */
 @media (min-width: 1400px) {
   .facility-locator-sidebar {
     width: 400px;
+  }
+
+  .facility-detail-modal {
+    width: 450px;
+  }
+}
+
+/* No Results State */
+.no-results {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 16px;
+  background: white;
+  border-radius: 8px;
+  margin: 20px;
+}
+
+/* Loading States */
+.facility-cards-container.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Custom Scrollbars */
+.facility-cards-container::-webkit-scrollbar,
+.filter-dropdown-menu::-webkit-scrollbar,
+.mobile-filter-content::-webkit-scrollbar,
+.facility-detail-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.facility-cards-container::-webkit-scrollbar-track,
+.filter-dropdown-menu::-webkit-scrollbar-track,
+.mobile-filter-content::-webkit-scrollbar-track,
+.facility-detail-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.facility-cards-container::-webkit-scrollbar-thumb,
+.filter-dropdown-menu::-webkit-scrollbar-thumb,
+.mobile-filter-content::-webkit-scrollbar-thumb,
+.facility-detail-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.facility-cards-container::-webkit-scrollbar-thumb:hover,
+.filter-dropdown-menu::-webkit-scrollbar-thumb:hover,
+.mobile-filter-content::-webkit-scrollbar-thumb:hover,
+.facility-detail-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Form Step Styles */
+.facility-locator-step {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.facility-locator-step.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-columns-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin: 20px 0;
+}
+
+.facility-locator-column {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.facility-locator-column h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.facility-locator-field-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.facility-locator-field-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.facility-locator-field-option input[type='radio'],
+.facility-locator-field-option input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.facility-locator-field-option label {
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.facility-locator-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  color: #374151;
+}
+
+.facility-locator-form-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.facility-locator-prev-btn,
+.facility-locator-next-btn,
+.facility-locator-submit-btn {
+  padding: 12px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.facility-locator-prev-btn {
+  background: #6b7280;
+}
+
+.facility-locator-prev-btn:hover {
+  background: #4b5563;
+}
+
+.facility-locator-next-btn:hover,
+.facility-locator-submit-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.facility-locator-form-skip {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.facility-locator-skip-link {
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.facility-locator-skip-link:hover {
+  color: #374151;
+  text-decoration: underline;
+}
+
+/* Enhanced Animations */
+.facility-card {
+  animation: slideInLeft 0.3s ease;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.filter-dropdown-menu {
+  animation: dropDown 0.2s ease;
+}
+
+@keyframes dropDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Accessibility Improvements */
+.facility-action-btn:focus,
+.filter-dropdown-button:focus,
+.facility-locator-next-btn:focus,
+.facility-locator-prev-btn:focus,
+.facility-locator-submit-btn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.filter-option:focus-within {
+  background: #f3f4f6;
+  outline: 1px solid #3b82f6;
+  border-radius: 4px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .facility-card {
+    border: 2px solid #000;
+  }
+
+  .filter-dropdown-button {
+    border: 2px solid #000;
+  }
+
+  .facility-action-btn {
+    border: 2px solid #000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .facility-locator-container {
+    height: auto;
+    overflow: visible;
+  }
+
+  .facility-locator-map-wrapper {
+    display: none;
+  }
+
+  .facility-locator-sidebar {
+    width: 100%;
+    position: static;
+    box-shadow: none;
+  }
+
+  .facility-card {
+    break-inside: avoid;
+    border: 1px solid #000;
+    margin-bottom: 20px;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .facility-locator-container {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+
+  .facility-locator-sidebar,
+  .facility-card,
+  .facility-detail-modal {
+    background: #374151;
+    color: #f9fafb;
+  }
+
+  .facility-locator-filter-bar {
+    background: rgba(55, 65, 81, 0.95);
+    border-bottom-color: #4b5563;
+  }
+
+  .filter-dropdown-button {
+    background: #4b5563;
+    border-color: #6b7280;
+    color: #f9fafb;
+  }
+
+  .filter-dropdown-menu {
+    background: #374151;
+    border-color: #4b5563;
+  }
+
+  .filter-option:hover {
+    background: #4b5563;
   }
 }

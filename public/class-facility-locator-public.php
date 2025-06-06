@@ -1,8 +1,8 @@
 <?php
 
 /**
- * The public-facing functionality with performance optimization
- * Includes external CSS/JS loading and caching improvements
+ * The public-facing functionality with image gallery support and fixed pin functionality
+ * Updated to handle multiple images and custom pin rendering
  */
 class Facility_Locator_Public
 {
@@ -20,7 +20,7 @@ class Facility_Locator_Public
     }
 
     /**
-     * Register the stylesheets for the public-facing side with optimization
+     * Register the stylesheets for the public-facing side
      */
     public function enqueue_styles()
     {
@@ -33,7 +33,7 @@ class Facility_Locator_Public
             'all'
         );
 
-        // Frontend-specific CSS with modern styling
+        // Frontend-specific CSS with Recovery.com + Google Maps styling
         wp_enqueue_style(
             $this->plugin_name . '-frontend',
             FACILITY_LOCATOR_URL . 'public/css/facility-locator-frontend.css',
@@ -44,7 +44,7 @@ class Facility_Locator_Public
     }
 
     /**
-     * Register the JavaScript for the public-facing side with performance optimization
+     * Register the JavaScript for the public-facing side
      */
     public function enqueue_scripts()
     {
@@ -81,22 +81,24 @@ class Facility_Locator_Public
         // Get available taxonomies for form configuration with caching
         $available_taxonomies = $this->get_cached_available_taxonomies();
 
-        // Localize script with optimized data
+        // Get cached settings including default pin image
+        $settings = $this->get_cached_settings();
+
+        // Localize script with enhanced data including pin settings
         wp_localize_script($this->plugin_name, 'facilityLocator', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('facility_locator_public_nonce'),
-            'settings' => $this->get_cached_settings(),
+            'settings' => $settings,
             'formSteps' => $this->get_cached_form_steps(),
             'availableTaxonomies' => $available_taxonomies,
         ));
     }
 
     /**
-     * Get cached available taxonomies for better performance
+     * Get cached available taxonomies
      */
     private function get_cached_available_taxonomies()
     {
-        // Use transient cache for frontend data
         $cache_key = 'facility_locator_available_taxonomies';
         $cached_taxonomies = get_transient($cache_key);
 
@@ -128,7 +130,7 @@ class Facility_Locator_Public
     }
 
     /**
-     * Get cached settings for better performance
+     * Get cached settings including default pin image
      */
     private function get_cached_settings()
     {
@@ -140,6 +142,7 @@ class Facility_Locator_Public
                 'mapHeight' => get_option('facility_locator_map_height', 500),
                 'ctaText' => get_option('facility_locator_cta_text', 'Find a Facility'),
                 'ctaColor' => get_option('facility_locator_cta_color', '#007bff'),
+                'defaultPinImage' => get_option('facility_locator_default_pin_image', ''),
             );
         }
 
@@ -147,11 +150,10 @@ class Facility_Locator_Public
     }
 
     /**
-     * Get cached form steps for better performance
+     * Get cached form steps
      */
     private function get_cached_form_steps()
     {
-        // Use transient cache for form steps
         $cache_key = 'facility_locator_form_steps';
         $cached_steps = get_transient($cache_key);
 
@@ -168,7 +170,7 @@ class Facility_Locator_Public
     }
 
     /**
-     * Shortcode output with performance optimization
+     * Shortcode output with enhanced styling
      */
     public function shortcode_output($atts)
     {
@@ -199,11 +201,11 @@ class Facility_Locator_Public
     }
 
     /**
-     * AJAX handler for getting facilities with performance optimization
+     * AJAX handler for getting facilities with image gallery support
      */
     public function ajax_get_facilities()
     {
-        // Performance: Clean output buffer before AJAX response
+        // Clean output buffer before AJAX response
         if (ob_get_level()) {
             ob_end_clean();
         }
@@ -227,13 +229,31 @@ class Facility_Locator_Public
             }
         }
 
-        // Get facilities with caching
+        // Get facilities with image gallery data
         $facilities = $this->facilities->get_facilities($filter_criteria);
 
-        // Get all available taxonomy options for filter dropdowns with caching
+        // Process facilities to ensure images are properly formatted
+        foreach ($facilities as &$facility) {
+            // Ensure images is an array
+            if (!is_array($facility->images)) {
+                $facility->images = array();
+            }
+
+            // Validate image URLs
+            $facility->images = array_filter($facility->images, function ($url) {
+                return !empty($url) && filter_var($url, FILTER_VALIDATE_URL);
+            });
+
+            // Ensure custom pin image is properly set
+            if (empty($facility->custom_pin_image)) {
+                $facility->custom_pin_image = '';
+            }
+        }
+
+        // Get all available taxonomy options for filter dropdowns
         $all_taxonomies = $this->facilities->get_taxonomy_filters();
 
-        // Format response with optimized structure
+        // Format response
         $response = array(
             'facilities' => $facilities,
             'filters' => $all_taxonomies,
@@ -242,7 +262,7 @@ class Facility_Locator_Public
         // Send response
         wp_send_json_success($response);
 
-        wp_die(); // Performance: Ensure clean AJAX termination
+        wp_die(); // Ensure clean AJAX termination
     }
 
     /**
@@ -256,5 +276,14 @@ class Facility_Locator_Public
         if (WP_DEBUG) {
             error_log('Facility Locator: Frontend caches cleared');
         }
+    }
+
+    /**
+     * Clear frontend caches if needed (hook for footer)
+     */
+    public function clear_frontend_caches_if_needed()
+    {
+        // This method is called in the footer but doesn't automatically clear caches
+        // Caches are cleared by specific actions in the cache manager
     }
 }

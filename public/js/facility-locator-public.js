@@ -217,17 +217,36 @@
       }
     });
 
-    // FIXED: Filter option selection with proper deselection support
+    // FIXED: Filter option selection with immediate state handling
     $(document).on('click', '.filter-option input[type="checkbox"]', function (e) {
-      // Don't prevent default - let the checkbox change naturally
+      // Let the checkbox toggle naturally
       const $checkbox = $(this);
+      const $container = $checkbox.closest('.facility-locator-container');
+      const id = $container.attr('id');
 
-      // Small delay to ensure checkbox state has updated
-      setTimeout(() => {
+      console.log('Checkbox clicked:', $checkbox.val(), 'Checked:', $checkbox.is(':checked'));
+
+      // Update filters immediately without delay
+      updateFilters($container, id);
+    });
+
+    // FIXED: Also handle label clicks to ensure proper toggling
+    $(document).on('click', '.filter-option label', function (e) {
+      // Let the label naturally toggle its associated checkbox
+      const $label = $(this);
+      const forValue = $label.attr('for');
+      const $checkbox = $(`#${forValue}`);
+
+      if ($checkbox.length) {
         const $container = $checkbox.closest('.facility-locator-container');
         const id = $container.attr('id');
-        updateFilters($container, id);
-      }, 10);
+
+        // Small delay to let the checkbox state update from label click
+        setTimeout(() => {
+          console.log('Label clicked for:', $checkbox.val(), 'Checked:', $checkbox.is(':checked'));
+          updateFilters($container, id);
+        }, 10);
+      }
     });
 
     // Clear all filters
@@ -1811,62 +1830,91 @@
   };
 
   /**
-   * FIXED: Update filters with proper checkbox state handling and sync
+   * FIXED: Update filters with proper state detection and sync
    */
   const updateFilters = ($container, id) => {
-    console.log('Updating filters...');
+    console.log('Updating filters for container:', id);
 
-    // Collect selected filters from ALL checkboxes in the container
-    const filters = {};
+    // Get the current state of ALL checkboxes in this container
+    const newFilters = {};
 
-    // Get all checked checkboxes from both filter areas
-    $container.find('.filter-option input[type="checkbox"]').each(function () {
+    // Collect from desktop filter dropdowns
+    $container.find('.filter-dropdown .filter-option input[type="checkbox"]').each(function () {
       const $checkbox = $(this);
       const taxonomyType = $checkbox.data('taxonomy');
       const value = $checkbox.val();
       const isChecked = $checkbox.is(':checked');
 
       if (taxonomyType && value) {
-        if (!filters[taxonomyType]) {
-          filters[taxonomyType] = [];
+        if (!newFilters[taxonomyType]) {
+          newFilters[taxonomyType] = [];
         }
 
-        if (isChecked && filters[taxonomyType].indexOf(value) === -1) {
-          filters[taxonomyType].push(value);
+        if (isChecked && !newFilters[taxonomyType].includes(value)) {
+          newFilters[taxonomyType].push(value);
         }
       }
     });
 
-    // FIXED: Sync checkboxes between desktop and mobile
+    // Also collect from mobile filter drawer if it exists
+    $container.find('.mobile-filter-drawer .filter-option input[type="checkbox"]').each(function () {
+      const $checkbox = $(this);
+      const taxonomyType = $checkbox.data('taxonomy');
+      const value = $checkbox.val();
+      const isChecked = $checkbox.is(':checked');
+
+      if (taxonomyType && value) {
+        if (!newFilters[taxonomyType]) {
+          newFilters[taxonomyType] = [];
+        }
+
+        // Only add if checked and not already in the array
+        if (isChecked && !newFilters[taxonomyType].includes(value)) {
+          newFilters[taxonomyType].push(value);
+        }
+      }
+    });
+
+    console.log('New filters collected:', newFilters);
+
+    // FIXED: Sync checkboxes between desktop and mobile areas
     $container.find('.filter-option input[type="checkbox"]').each(function () {
-      const $this = $(this);
-      const taxonomyType = $this.data('taxonomy');
-      const value = $this.val();
-      const shouldBeChecked = filters[taxonomyType] && filters[taxonomyType].includes(value);
+      const $checkbox = $(this);
+      const taxonomyType = $checkbox.data('taxonomy');
+      const value = $checkbox.val();
+      const shouldBeChecked = newFilters[taxonomyType] && newFilters[taxonomyType].includes(value);
 
-      // Find corresponding checkbox in other filter area
-      const isMobile = $this.closest('.mobile-filter-drawer').length > 0;
-      const otherSelector = isMobile
-        ? `.filter-dropdown input[data-taxonomy="${taxonomyType}"][value="${value}"]`
-        : `.mobile-filter-drawer input[data-taxonomy="${taxonomyType}"][value="${value}"]`;
+      // Find the corresponding checkbox in the other area
+      const isInMobile = $checkbox.closest('.mobile-filter-drawer').length > 0;
+      let $otherCheckbox;
 
-      const $otherCheckbox = $container.find(otherSelector);
+      if (isInMobile) {
+        // This is in mobile, find desktop equivalent
+        $otherCheckbox = $container.find(`.filter-dropdown input[data-taxonomy="${taxonomyType}"][value="${value}"]`);
+      } else {
+        // This is in desktop, find mobile equivalent
+        $otherCheckbox = $container.find(
+          `.mobile-filter-drawer input[data-taxonomy="${taxonomyType}"][value="${value}"]`
+        );
+      }
 
-      // Sync state without triggering events
-      $this.prop('checked', shouldBeChecked);
-      $otherCheckbox.prop('checked', shouldBeChecked);
-    });
-
-    // Clean up empty arrays
-    Object.keys(filters).forEach((key) => {
-      if (filters[key].length === 0) {
-        delete filters[key];
+      // Sync the other checkbox without triggering events
+      if ($otherCheckbox.length) {
+        $otherCheckbox.prop('checked', shouldBeChecked);
       }
     });
 
-    activeFilters[id] = filters;
+    // Clean up empty arrays from filters
+    Object.keys(newFilters).forEach((key) => {
+      if (newFilters[key].length === 0) {
+        delete newFilters[key];
+      }
+    });
 
-    console.log('Filters updated:', activeFilters[id]);
+    // Update active filters
+    activeFilters[id] = newFilters;
+
+    console.log('Active filters updated to:', activeFilters[id]);
 
     // Update filter button states
     updateFilterButtonStates($container, id);
@@ -1913,14 +1961,22 @@
   };
 
   /**
-   * Clear all filters
+   * FIXED: Clear all filters with proper state reset
    */
   const clearAllFilters = ($container, id) => {
+    console.log('Clearing all filters for container:', id);
+
+    // Reset active filters
     activeFilters[id] = {};
-    $container
-      .find('.filter-option input[type="checkbox"], .mobile-filter-drawer .filter-option input[type="checkbox"]')
-      .prop('checked', false);
+
+    // Uncheck all checkboxes in both desktop and mobile areas
+    $container.find('.filter-option input[type="checkbox"]').prop('checked', false);
+    $container.find('.mobile-filter-drawer .filter-option input[type="checkbox"]').prop('checked', false);
+
+    // Update button states
     updateFilterButtonStates($container, id);
+
+    // Fetch all facilities
     fetchFacilities($container, id);
   };
 

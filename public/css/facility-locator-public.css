@@ -428,6 +428,7 @@
   cursor: pointer;
   transition: background 0.2s ease;
   border-radius: 0;
+  user-select: none;
 }
 
 .filter-option:first-child {
@@ -445,10 +446,18 @@
 }
 
 .filter-option input[type='checkbox'] {
+  cursor: pointer;
   width: 18px;
   height: 18px;
   accent-color: #3b82f6;
   border-radius: 4px;
+  margin-right: 8px;
+}
+
+/* Prevent double-click issues */
+.filter-option input[type='checkbox']:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .filter-option label {
@@ -457,6 +466,7 @@
   color: #374151;
   cursor: pointer;
   line-height: 1.4;
+  user-select: none;
 }
 
 .clear-all-filters {

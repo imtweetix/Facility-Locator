@@ -140,7 +140,7 @@
       $popup
         .css({
           display: 'block',
-          'z-index': '9999',
+          'z-index': '99999',
           position: 'fixed',
         })
         .fadeIn(300);
@@ -292,7 +292,7 @@
   };
 
   /**
-   * Build form steps
+   * Build form steps with better error handling
    */
   const buildFormSteps = ($container, id) => {
     const formSteps = facilityLocator.formSteps;
@@ -301,7 +301,8 @@
     // Clear any existing steps
     $stepsContainer.empty();
 
-    if (!formSteps || formSteps.length === 0) {
+    // Check if formSteps is properly defined and is an array
+    if (!formSteps || !Array.isArray(formSteps) || formSteps.length === 0) {
       // No form steps configured - create a simple "get started" step
       const $simpleStep = $('<div>').addClass('facility-locator-step active').attr('data-step', 0);
       $simpleStep.append(`
@@ -323,15 +324,47 @@
       return;
     }
 
-    // Build form steps normally
-    formSteps.forEach((step, index) => {
-      buildStep($stepsContainer, step, index);
+    // Validate each step before building
+    const validSteps = formSteps.filter((step) => {
+      return step && typeof step === 'object' && step.title;
     });
 
-    $container.find('.facility-locator-step').first().addClass('active');
-    updateNavButtons($container);
+    if (validSteps.length === 0) {
+      console.warn('Form steps: All steps are invalid, falling back to simple step');
+      // Fall back to simple step
+      const $simpleStep = $('<div>').addClass('facility-locator-step active').attr('data-step', 0);
+      $simpleStep.append(`
+        <h2>Find Facilities Near You</h2>
+        <p style="margin: 20px 0; color: #6b7280; font-size: 16px; text-align: center;">
+          Browse all available facilities or use our search filters to find exactly what you're looking for.
+        </p>
+      `);
+      $stepsContainer.append($simpleStep);
 
-    console.log('Form steps: Built', formSteps.length, 'steps');
+      const $submitBtn = $container.find('.facility-locator-submit-btn');
+      const $nextBtn = $container.find('.facility-locator-next-btn');
+      $nextBtn.hide();
+      $submitBtn.show().text('Browse Facilities');
+      return;
+    }
+
+    // Build form steps normally
+    validSteps.forEach((step, index) => {
+      try {
+        buildStep($stepsContainer, step, index);
+      } catch (error) {
+        console.error('Error building step', index, ':', error);
+      }
+    });
+
+    // Ensure at least one step is active
+    const $steps = $container.find('.facility-locator-step');
+    if ($steps.length > 0) {
+      $steps.first().addClass('active');
+      updateNavButtons($container);
+    }
+
+    console.log('Form steps: Built', validSteps.length, 'valid steps out of', formSteps.length, 'total steps');
   };
 
   /**
@@ -706,7 +739,7 @@
   };
 
   /**
-   * Render mobile filter drawer - FIXED WITH ID PARAMETER
+   * Render mobile filter drawer
    */
   const renderMobileFilterDrawer = ($container, id, filters) => {
     let $drawer = $container.find('.mobile-filter-drawer');

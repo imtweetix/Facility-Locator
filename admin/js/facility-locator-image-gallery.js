@@ -1,29 +1,52 @@
 /**
  * Image Gallery functionality for Facility Form
- * Pure jQuery implementation for image gallery management
+ * Pure jQuery implementation with proper dependency handling
  */
-(function ($) {
+(($) => {
   'use strict';
 
-  $(document).ready(() => {
-    let imageUploader;
-    let imageCount = facilityFormData.imageCount;
-    const maxImages = facilityFormData.maxImages;
+  /**
+   * Initialize image gallery functionality
+   */
+  const initImageGallery = () => {
+    // Check if facilityFormData is available
+    if (typeof facilityFormData === 'undefined') {
+      console.warn('Image Gallery: facilityFormData not available, retrying...');
 
-    // Make images sortable
-    $('#facility-images-container').sortable({
-      handle: '.drag-handle',
-      update: () => {
-        updateImageOrder();
-      },
-    });
+      // Retry after a short delay
+      setTimeout(initImageGallery, 100);
+      return;
+    }
+
+    let imageUploader;
+    let imageCount = facilityFormData.imageCount || 0;
+    const maxImages = facilityFormData.maxImages || 5;
+
+    console.log('Image Gallery: Initializing with', imageCount, 'existing images');
+
+    // Make images sortable if container exists
+    const $imagesContainer = $('#facility-images-container');
+    if ($imagesContainer.length) {
+      $imagesContainer.sortable({
+        handle: '.drag-handle',
+        update: () => {
+          updateImageOrder();
+        },
+      });
+    }
 
     // Add image button
     $('#add-facility-image').on('click', (e) => {
       e.preventDefault();
 
       if (imageCount >= maxImages) {
-        alert('Maximum of 5 images allowed.');
+        alert(`Maximum of ${maxImages} images allowed.`);
+        return;
+      }
+
+      // Check if wp.media is available
+      if (typeof wp === 'undefined' || typeof wp.media === 'undefined') {
+        alert('WordPress media library is not available. Please refresh the page and try again.');
         return;
       }
 
@@ -76,26 +99,50 @@
       updateImageOrder();
     });
 
+    /**
+     * Add image to gallery
+     */
     const addImageToGallery = (imageUrl, index) => {
       const imageHtml = `
-                <div class="facility-image-item" data-index="${index}">
-                    <img src="${imageUrl}" style="max-width: 150px; max-height: 100px; object-fit: cover;">
-                    <input type="hidden" name="images[]" value="${imageUrl}">
-                    <button type="button" class="button remove-image">Remove</button>
-                    <span class="drag-handle">⋮⋮</span>
-                </div>
-            `;
+        <div class="facility-image-item" data-index="${index}">
+          <img src="${imageUrl}" style="max-width: 150px; max-height: 100px; object-fit: cover;">
+          <input type="hidden" name="images[]" value="${imageUrl}">
+          <button type="button" class="button remove-image">Remove</button>
+          <span class="drag-handle">⋮⋮</span>
+        </div>
+      `;
       $('#facility-images-container').append(imageHtml);
     };
 
+    /**
+     * Update image count display
+     */
     const updateImageCount = () => {
-      $('#image-count').text(`(${imageCount}/${maxImages})`);
+      const $countElement = $('#image-count');
+      if ($countElement.length) {
+        $countElement.text(`(${imageCount}/${maxImages})`);
+      }
     };
 
+    /**
+     * Update add button state
+     */
     const updateAddButtonState = () => {
-      $('#add-facility-image').prop('disabled', imageCount >= maxImages);
+      const $addButton = $('#add-facility-image');
+      if ($addButton.length) {
+        $addButton.prop('disabled', imageCount >= maxImages);
+
+        if (imageCount >= maxImages) {
+          $addButton.text(`Maximum ${maxImages} images reached`);
+        } else {
+          $addButton.text('Add Image');
+        }
+      }
     };
 
+    /**
+     * Update image order after sorting
+     */
     const updateImageOrder = () => {
       $('#facility-images-container .facility-image-item').each((index, element) => {
         $(element).attr('data-index', index);
@@ -104,5 +151,22 @@
 
     // Initialize button state
     updateAddButtonState();
+    updateImageCount();
+
+    console.log('Image Gallery: Initialization complete');
+  };
+
+  /**
+   * DOM ready initialization with error handling
+   */
+  $(() => {
+    // Check if we're on a facility form page
+    if ($('#facility-form').length === 0) {
+      console.log('Image Gallery: Not on facility form page, skipping initialization');
+      return;
+    }
+
+    // Start initialization
+    initImageGallery();
   });
 })(jQuery);

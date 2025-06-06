@@ -1,7 +1,7 @@
 <?php
 
 /**
- * The public-facing functionality with image gallery support and fixed pin functionality
+ * The public-facing functionality with image gallery support and fixed template path
  * Updated to handle multiple images and custom pin rendering
  */
 class Facility_Locator_Public
@@ -24,20 +24,11 @@ class Facility_Locator_Public
      */
     public function enqueue_styles()
     {
-        // Main public CSS
+        // Main public CSS (merged with frontend styles)
         wp_enqueue_style(
             $this->plugin_name,
             FACILITY_LOCATOR_URL . 'public/css/facility-locator-public.css',
             array(),
-            $this->version,
-            'all'
-        );
-
-        // Frontend-specific CSS with Recovery.com + Google Maps styling
-        wp_enqueue_style(
-            $this->plugin_name . '-frontend',
-            FACILITY_LOCATOR_URL . 'public/css/facility-locator-frontend.css',
-            array($this->plugin_name),
             $this->version,
             'all'
         );
@@ -179,7 +170,7 @@ class Facility_Locator_Public
     }
 
     /**
-     * Shortcode output with enhanced styling
+     * Shortcode output with enhanced styling - FIXED TEMPLATE PATH
      */
     public function shortcode_output($atts)
     {
@@ -195,14 +186,16 @@ class Facility_Locator_Public
         // Start output buffering
         ob_start();
 
-        // Include template using template loader
+        // Include template using template loader with CORRECTED PATH
         Facility_Locator_Template_Loader::get_template(
             'public/public-template.php',
             array(
                 'id' => $id,
                 'cta_text' => $settings['ctaText'],
                 'cta_color' => $settings['ctaColor'],
-            )
+            ),
+            'facility-locator/',  // Template path within theme
+            FACILITY_LOCATOR_PATH . 'templates/'  // Default path in plugin
         );
 
         // Return the buffered content

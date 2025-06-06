@@ -217,6 +217,24 @@
       }
     });
 
+    // IMPROVED: Single checkbox handler with debouncing
+    let filterUpdateTimeout;
+    $(document).on('change', '.filter-option input[type="checkbox"]', function (e) {
+      const $checkbox = $(this);
+      const $container = $checkbox.closest('.facility-locator-container');
+      const id = $container.attr('id');
+
+      console.log('Checkbox changed:', $checkbox.val(), 'Checked:', $checkbox.is(':checked'));
+
+      // Clear any pending updates
+      clearTimeout(filterUpdateTimeout);
+
+      // Debounce the update to prevent multiple rapid calls
+      filterUpdateTimeout = setTimeout(() => {
+        updateFilters($container, id);
+      }, 50); // Small delay to ensure DOM is updated
+    });
+
     // FIXED: Filter option selection with immediate state handling
     $(document).on('click', '.filter-option input[type="checkbox"]', function (e) {
       // Let the checkbox toggle naturally
@@ -1835,11 +1853,28 @@
   const updateFilters = ($container, id) => {
     console.log('Updating filters for container:', id);
 
-    // Get the current state of ALL checkboxes in this container
+    // Get the current state of checkboxes from PRIMARY source only
     const newFilters = {};
 
-    // Collect from desktop filter dropdowns
-    $container.find('.filter-dropdown .filter-option input[type="checkbox"]').each(function () {
+    // Determine which filter area to use as primary source
+    const isMobileView = window.innerWidth <= 768;
+    const $mobileDrawer = $container.find('.mobile-filter-drawer');
+    const isDrawerOpen = $mobileDrawer.hasClass('open');
+
+    // Use mobile filters as source if mobile view OR if drawer is open
+    const useMobileAsSource = (isMobileView && $mobileDrawer.length > 0) || isDrawerOpen;
+
+    let $sourceCheckboxes;
+    if (useMobileAsSource) {
+      $sourceCheckboxes = $container.find('.mobile-filter-drawer .filter-option input[type="checkbox"]');
+      console.log('Using mobile checkboxes as source');
+    } else {
+      $sourceCheckboxes = $container.find('.filter-dropdown .filter-option input[type="checkbox"]');
+      console.log('Using desktop checkboxes as source');
+    }
+
+    // Collect from the primary source only
+    $sourceCheckboxes.each(function () {
       const $checkbox = $(this);
       const taxonomyType = $checkbox.data('taxonomy');
       const value = $checkbox.val();
@@ -1856,51 +1891,26 @@
       }
     });
 
-    // Also collect from mobile filter drawer if it exists
-    $container.find('.mobile-filter-drawer .filter-option input[type="checkbox"]').each(function () {
-      const $checkbox = $(this);
-      const taxonomyType = $checkbox.data('taxonomy');
-      const value = $checkbox.val();
-      const isChecked = $checkbox.is(':checked');
+    console.log('New filters collected from primary source:', newFilters);
 
-      if (taxonomyType && value) {
-        if (!newFilters[taxonomyType]) {
-          newFilters[taxonomyType] = [];
-        }
+    // Now sync to the secondary source
+    let $secondaryCheckboxes;
+    if (useMobileAsSource) {
+      $secondaryCheckboxes = $container.find('.filter-dropdown .filter-option input[type="checkbox"]');
+    } else {
+      $secondaryCheckboxes = $container.find('.mobile-filter-drawer .filter-option input[type="checkbox"]');
+    }
 
-        // Only add if checked and not already in the array
-        if (isChecked && !newFilters[taxonomyType].includes(value)) {
-          newFilters[taxonomyType].push(value);
-        }
-      }
-    });
-
-    console.log('New filters collected:', newFilters);
-
-    // FIXED: Sync checkboxes between desktop and mobile areas
-    $container.find('.filter-option input[type="checkbox"]').each(function () {
+    // Sync secondary checkboxes without triggering events
+    $secondaryCheckboxes.each(function () {
       const $checkbox = $(this);
       const taxonomyType = $checkbox.data('taxonomy');
       const value = $checkbox.val();
       const shouldBeChecked = newFilters[taxonomyType] && newFilters[taxonomyType].includes(value);
 
-      // Find the corresponding checkbox in the other area
-      const isInMobile = $checkbox.closest('.mobile-filter-drawer').length > 0;
-      let $otherCheckbox;
-
-      if (isInMobile) {
-        // This is in mobile, find desktop equivalent
-        $otherCheckbox = $container.find(`.filter-dropdown input[data-taxonomy="${taxonomyType}"][value="${value}"]`);
-      } else {
-        // This is in desktop, find mobile equivalent
-        $otherCheckbox = $container.find(
-          `.mobile-filter-drawer input[data-taxonomy="${taxonomyType}"][value="${value}"]`
-        );
-      }
-
-      // Sync the other checkbox without triggering events
-      if ($otherCheckbox.length) {
-        $otherCheckbox.prop('checked', shouldBeChecked);
+      // Only update if different to avoid unnecessary DOM changes
+      if ($checkbox.is(':checked') !== shouldBeChecked) {
+        $checkbox.prop('checked', shouldBeChecked);
       }
     });
 

@@ -1,9 +1,9 @@
 /**
  * Enhanced Frontend JavaScript for Recovery.com + Google Maps style interface
- * Updated with image gallery support and improved pin functionality
+ * Complete rewrite with proper jQuery implementation and ES6 features
  */
-(function ($) {
-  ('use strict');
+(($) => {
+  'use strict';
 
   // Store map instances and data
   const maps = {};
@@ -41,178 +41,7 @@
   };
 
   /**
-   * Enhanced renderMap function with proper error handling
-   * Replace the existing renderMap function with this version
-   */
-  const renderMap = async ($container, id, facilities) => {
-    const $mapContainer = $container.find(`#${id}-map`);
-
-    // Check if API key is available
-    if (!facilityLocator.hasApiKey) {
-      $mapContainer.html(`
-      <div style="padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
-        <h3 style="color: #6b7280; margin: 0 0 8px 0;">Google Maps API Key Required</h3>
-        <p style="color: #9ca3af; margin: 0;">Please configure your Google Maps API key to view the map.</p>
-      </div>
-    `);
-      return;
-    }
-
-    try {
-      // Wait for Google Maps to be ready
-      await checkGoogleMapsReady();
-
-      if (!maps[id]) {
-        maps[id] = new google.maps.Map($mapContainer[0], {
-          zoom: parseInt(facilityLocator.settings?.mapZoom) || 10,
-          center: { lat: 40.7128, lng: -74.006 },
-          mapTypeControl: true,
-          scrollwheel: true,
-          streetViewControl: false,
-          fullscreenControl: true,
-          styles: [
-            {
-              featureType: 'poi',
-              elementType: 'labels',
-              stylers: [{ visibility: 'off' }],
-            },
-          ],
-        });
-
-        markers[id] = [];
-        infoWindows[id] = [];
-      }
-
-      // Clear existing markers and clusterer
-      clearMarkers(id);
-
-      if (!facilities || facilities.length === 0) {
-        return;
-      }
-
-      const bounds = new google.maps.LatLngBounds();
-      const defaultPinImage = facilityLocator.settings?.defaultPinImage;
-
-      // Create markers with custom pins
-      facilities.forEach((facility, index) => {
-        const position = {
-          lat: parseFloat(facility.lat),
-          lng: parseFloat(facility.lng),
-        };
-
-        // Determine pin image
-        let pinIcon = null;
-        if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
-          // Use facility's custom pin
-          pinIcon = {
-            url: facility.custom_pin_image,
-            scaledSize: new google.maps.Size(32, 40),
-            anchor: new google.maps.Point(16, 40),
-          };
-        } else if (defaultPinImage && defaultPinImage.trim() !== '') {
-          // Use default custom pin
-          pinIcon = {
-            url: defaultPinImage,
-            scaledSize: new google.maps.Size(32, 40),
-            anchor: new google.maps.Point(16, 40),
-          };
-        } else {
-          // Use default Google Maps pin with custom color
-          pinIcon = {
-            url:
-              'data:image/svg+xml;charset=UTF-8,' +
-              encodeURIComponent(`
-            <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 0C7.2 0 0 7.2 0 16c0 16 16 24 16 24s16-8 16-24c0-8.8-7.2-16-16-16z" fill="#3b82f6"/>
-              <circle cx="16" cy="16" r="8" fill="white"/>
-            </svg>
-          `),
-            scaledSize: new google.maps.Size(32, 40),
-            anchor: new google.maps.Point(16, 40),
-          };
-        }
-
-        const marker = new google.maps.Marker({
-          position,
-          title: facility.name,
-          icon: pinIcon,
-        });
-
-        // Create info window
-        const infoWindow = new google.maps.InfoWindow({
-          content: `
-          <div style="padding: 8px; min-width: 200px;">
-            <h4 style="margin: 0 0 8px 0; font-size: 16px;">${facility.name}</h4>
-            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${facility.address}</p>
-            ${
-              facility.phone
-                ? `<p style="margin: 0; font-size: 14px;"><strong>Phone:</strong> ${facility.phone}</p>`
-                : ''
-            }
-          </div>
-        `,
-        });
-
-        // Add click listener
-        marker.addListener('click', () => {
-          // Close all info windows
-          infoWindows[id].forEach((window) => window.close());
-
-          // Open this info window
-          infoWindow.open(maps[id], marker);
-
-          // Highlight facility card and show details
-          highlightFacilityCard(facility.id);
-          showFacilityDetails($container, facility.id);
-        });
-
-        markers[id].push(marker);
-        infoWindows[id].push(infoWindow);
-        bounds.extend(position);
-      });
-
-      // Add marker clustering if available
-      if (window.MarkerClusterer && window.markerClusterer) {
-        if (markerClusterer[id]) {
-          markerClusterer[id].clearMarkers();
-        }
-
-        markerClusterer[id] = new markerClusterer.MarkerClusterer({
-          map: maps[id],
-          markers: markers[id],
-        });
-      } else {
-        // Set markers on map if no clustering
-        markers[id].forEach((marker) => marker.setMap(maps[id]));
-      }
-
-      // Fit map to bounds with auto-zoom
-      if (facilities.length === 1) {
-        maps[id].setCenter(bounds.getCenter());
-        maps[id].setZoom(15);
-      } else if (facilities.length > 1) {
-        maps[id].fitBounds(bounds);
-
-        // Ensure minimum zoom level
-        google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
-          if (maps[id].getZoom() > 15) {
-            maps[id].setZoom(15);
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Google Maps error:', error);
-      $mapContainer.html(`
-      <div style="padding: 40px; text-align: center; background: #fee2e2; border-radius: 8px;">
-        <h3 style="color: #dc2626; margin: 0 0 8px 0;">Map Loading Error</h3>
-        <p style="color: #991b1b; margin: 0;">Unable to load Google Maps. Please check your API key and internet connection.</p>
-      </div>
-    `);
-    }
-  };
-
-  /**
-   * Validate template elements
+   * Validate that all required template elements exist
    */
   const validateTemplateElements = ($container, id) => {
     const requiredElements = [
@@ -234,7 +63,6 @@
 
     if (missingElements.length > 0) {
       console.error('Missing template elements in container', id, ':', missingElements);
-      console.error('Please check that the template file is properly loaded.');
       return false;
     }
 
@@ -287,7 +115,7 @@
   };
 
   /**
-   * Initialize event listeners
+   * Initialize event listeners with proper jQuery syntax
    */
   const initEventListeners = ($container, id) => {
     const $ctaButton = $container.find('.facility-locator-cta-button');
@@ -303,17 +131,26 @@
     console.log('CTA Button found:', $ctaButton.length);
     console.log('Popup found:', $popup.length);
 
-    // Initial popup interactions - ALWAYS show popup first
+    // CTA button click - show popup
     $ctaButton.on('click', (e) => {
       e.preventDefault();
       console.log('CTA button clicked, showing popup');
 
-      // Ensure popup is visible
-      $popup.css('display', 'block').fadeIn(300);
+      // Ensure popup is visible with proper z-index
+      $popup
+        .css({
+          display: 'block',
+          'z-index': '9999',
+          position: 'fixed',
+        })
+        .fadeIn(300);
+
       $('body').css('overflow', 'hidden');
     });
 
-    $closeButton.on('click', () => {
+    // Close button click
+    $closeButton.on('click', (e) => {
+      e.preventDefault();
       console.log('Popup close button clicked');
       $popup.fadeOut(300);
       $('body').css('overflow', 'auto');
@@ -329,12 +166,14 @@
     });
 
     // Form navigation
-    $nextBtn.on('click', () => {
+    $nextBtn.on('click', (e) => {
+      e.preventDefault();
       console.log('Next button clicked');
       navigateStep($container, 'next');
     });
 
-    $prevBtn.on('click', () => {
+    $prevBtn.on('click', (e) => {
+      e.preventDefault();
       console.log('Previous button clicked');
       navigateStep($container, 'prev');
     });
@@ -351,6 +190,14 @@
       showAllFacilities($container, id);
     });
 
+    // Mobile and filter interactions (use delegated events for dynamic content)
+    initDelegatedEventListeners($container, id);
+  };
+
+  /**
+   * Initialize delegated event listeners for dynamic content
+   */
+  const initDelegatedEventListeners = ($container, id) => {
     // Filter interactions
     $(document).on('click', '.filter-dropdown-button', function (e) {
       e.stopPropagation();
@@ -428,73 +275,28 @@
     });
 
     // Mobile interactions
-    initMobileEventListeners($container, id);
-  };
-
-  /**
-   * Initialize mobile-specific event listeners
-   */
-  const initMobileEventListeners = ($container, id) => {
-    // Mobile filter trigger
     $(document).on('click', '.mobile-filter-trigger', function () {
       $('.mobile-filter-drawer').addClass('open');
     });
 
-    // Mobile filter drawer close
     $(document).on('click', '.mobile-filter-close', function () {
       $('.mobile-filter-drawer').removeClass('open');
     });
 
-    // Apply mobile filters
     $(document).on('click', '.apply-mobile-filters', function () {
       $('.mobile-filter-drawer').removeClass('open');
       const $container = $(this).closest('.facility-locator-container');
       const id = $container.attr('id');
       updateFilters($container, id);
     });
-
-    // Mobile sidebar swipe interactions
-    if (window.innerWidth <= 768) {
-      let startY = 0;
-      let currentY = 0;
-      let isDragging = false;
-
-      $(document).on('touchstart', '.sidebar-header', function (e) {
-        startY = e.originalEvent.touches[0].clientY;
-        isDragging = true;
-      });
-
-      $(document).on('touchmove', '.sidebar-header', function (e) {
-        if (!isDragging) return;
-        currentY = e.originalEvent.touches[0].clientY;
-        const diff = currentY - startY;
-
-        if (diff < -50) {
-          $('.facility-locator-sidebar').addClass('open');
-        } else if (diff > 50) {
-          $('.facility-locator-sidebar').removeClass('open');
-        }
-      });
-
-      $(document).on('touchend', '.sidebar-header', function () {
-        isDragging = false;
-      });
-
-      // Tap to toggle sidebar
-      $(document).on('click', '.sidebar-header', function () {
-        $('.facility-locator-sidebar').toggleClass('open');
-      });
-    }
   };
 
   /**
-   * Build form steps for initial popup
+   * Build form steps
    */
   const buildFormSteps = ($container, id) => {
     const formSteps = facilityLocator.formSteps;
     const $stepsContainer = $container.find('.facility-locator-steps');
-    const $popup = $container.find('.facility-locator-popup');
-    const $ctaButton = $container.find('.facility-locator-cta-button');
 
     // Clear any existing steps
     $stepsContainer.empty();
@@ -517,7 +319,6 @@
       $nextBtn.hide();
       $submitBtn.show().text('Browse Facilities');
 
-      // Keep the popup functionality intact
       console.log('Form steps: No steps configured, showing simple popup');
       return;
     }
@@ -538,7 +339,7 @@
    */
   const buildStep = ($stepsContainer, step, index) => {
     const $step = $('<div>').addClass('facility-locator-step').attr('data-step', index);
-    $step.append($('<h2>').text(step.title));
+    $step.append($('<h2>').text(`Step ${index + 1}: ${step.title}`));
 
     if (step.columns && step.columns.length > 0) {
       const $columnsContainer = $('<div>').addClass('form-columns-container');
@@ -905,7 +706,7 @@
   };
 
   /**
-   * Render mobile filter drawer
+   * Render mobile filter drawer - FIXED WITH ID PARAMETER
    */
   const renderMobileFilterDrawer = ($container, id, filters) => {
     let $drawer = $container.find('.mobile-filter-drawer');
@@ -1126,88 +927,103 @@
   /**
    * Render Google Map with enhanced pin functionality
    */
-  const renderMap = ($container, id, facilities) => {
+  const renderMap = async ($container, id, facilities) => {
     const $mapContainer = $container.find(`#${id}-map`);
 
-    if (!maps[id]) {
-      maps[id] = new google.maps.Map($mapContainer[0], {
-        zoom: 10,
-        center: { lat: 40.7128, lng: -74.006 },
-        mapTypeControl: true,
-        scrollwheel: true,
-        streetViewControl: false,
-        fullscreenControl: true,
-        styles: [
-          {
-            featureType: 'poi',
-            elementType: 'labels',
-            stylers: [{ visibility: 'off' }],
-          },
-        ],
-      });
-
-      markers[id] = [];
-      infoWindows[id] = [];
-    }
-
-    // Clear existing markers and clusterer
-    clearMarkers(id);
-
-    if (!facilities || facilities.length === 0) {
+    // Check if API key is available
+    if (!facilityLocator.hasApiKey) {
+      $mapContainer.html(`
+      <div style="padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+        <h3 style="color: #6b7280; margin: 0 0 8px 0;">Google Maps API Key Required</h3>
+        <p style="color: #9ca3af; margin: 0;">Please configure your Google Maps API key to view the map.</p>
+      </div>
+    `);
       return;
     }
 
-    const bounds = new google.maps.LatLngBounds();
-    const defaultPinImage = facilityLocator.settings?.defaultPinImage;
+    try {
+      // Wait for Google Maps to be ready
+      await checkGoogleMapsReady();
 
-    // Create markers with custom pins
-    facilities.forEach((facility, index) => {
-      const position = {
-        lat: parseFloat(facility.lat),
-        lng: parseFloat(facility.lng),
-      };
+      if (!maps[id]) {
+        maps[id] = new google.maps.Map($mapContainer[0], {
+          zoom: parseInt(facilityLocator.settings?.mapZoom) || 10,
+          center: { lat: 40.7128, lng: -74.006 },
+          mapTypeControl: true,
+          scrollwheel: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+          styles: [
+            {
+              featureType: 'poi',
+              elementType: 'labels',
+              stylers: [{ visibility: 'off' }],
+            },
+          ],
+        });
 
-      // Determine pin image
-      let pinIcon = null;
-      if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
-        // Use facility's custom pin
-        pinIcon = {
-          url: facility.custom_pin_image,
-          scaledSize: new google.maps.Size(32, 40),
-          anchor: new google.maps.Point(16, 40),
+        markers[id] = [];
+        infoWindows[id] = [];
+      }
+
+      // Clear existing markers and clusterer
+      clearMarkers(id);
+
+      if (!facilities || facilities.length === 0) {
+        return;
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+      const defaultPinImage = facilityLocator.settings?.defaultPinImage;
+
+      // Create markers with custom pins
+      facilities.forEach((facility, index) => {
+        const position = {
+          lat: parseFloat(facility.lat),
+          lng: parseFloat(facility.lng),
         };
-      } else if (defaultPinImage && defaultPinImage.trim() !== '') {
-        // Use default custom pin
-        pinIcon = {
-          url: defaultPinImage,
-          scaledSize: new google.maps.Size(32, 40),
-          anchor: new google.maps.Point(16, 40),
-        };
-      } else {
-        // Use default Google Maps pin with custom color
-        pinIcon = {
-          url:
-            'data:image/svg+xml;charset=UTF-8,' +
-            encodeURIComponent(`
+
+        // Determine pin image
+        let pinIcon = null;
+        if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
+          // Use facility's custom pin
+          pinIcon = {
+            url: facility.custom_pin_image,
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          };
+        } else if (defaultPinImage && defaultPinImage.trim() !== '') {
+          // Use default custom pin
+          pinIcon = {
+            url: defaultPinImage,
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          };
+        } else {
+          // Use default Google Maps pin with custom color
+          pinIcon = {
+            url:
+              'data:image/svg+xml;charset=UTF-8,' +
+              encodeURIComponent(`
             <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
               <path d="M16 0C7.2 0 0 7.2 0 16c0 16 16 24 16 24s16-8 16-24c0-8.8-7.2-16-16-16z" fill="#3b82f6"/>
               <circle cx="16" cy="16" r="8" fill="white"/>
             </svg>
           `),
-          scaledSize: new google.maps.Size(32, 40),
-          anchor: new google.maps.Point(16, 40),
-        };
-      }
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          };
+        }
 
-      const marker = new google.maps.Marker({
-        position,
-        title: facility.name,
-        icon: pinIcon,
-      });
+        const marker = new google.maps.Marker({
+          position,
+          title: facility.name,
+          icon: pinIcon,
+        });
 
-      // Create info window
-      const infoWindow = new google.maps.InfoWindow({
-        content: `
+        // Create info window
+        const infoWindow = new google.maps.InfoWindow({
+          content: `
           <div style="padding: 8px; min-width: 200px;">
             <h4 style="margin: 0 0 8px 0; font-size: 16px;">${facility.name}</h4>
             <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${facility.address}</p>
@@ -1218,55 +1034,63 @@
             }
           </div>
         `,
+        });
+
+        // Add click listener
+        marker.addListener('click', () => {
+          // Close all info windows
+          infoWindows[id].forEach((window) => window.close());
+
+          // Open this info window
+          infoWindow.open(maps[id], marker);
+
+          // Highlight facility card and show details
+          highlightFacilityCard(facility.id);
+          showFacilityDetails($container, facility.id);
+        });
+
+        markers[id].push(marker);
+        infoWindows[id].push(infoWindow);
+        bounds.extend(position);
       });
 
-      // Add click listener
-      marker.addListener('click', () => {
-        // Close all info windows
-        infoWindows[id].forEach((window) => window.close());
+      // Add marker clustering if available
+      if (window.MarkerClusterer && window.markerClusterer) {
+        if (markerClusterer[id]) {
+          markerClusterer[id].clearMarkers();
+        }
 
-        // Open this info window
-        infoWindow.open(maps[id], marker);
-
-        // Highlight facility card and show details
-        highlightFacilityCard(facility.id);
-        showFacilityDetails($container, facility.id);
-      });
-
-      markers[id].push(marker);
-      infoWindows[id].push(infoWindow);
-      bounds.extend(position);
-    });
-
-    // Add marker clustering
-    if (window.MarkerClusterer) {
-      if (markerClusterer[id]) {
-        markerClusterer[id].clearMarkers();
+        markerClusterer[id] = new markerClusterer.MarkerClusterer({
+          map: maps[id],
+          markers: markers[id],
+        });
+      } else {
+        // Set markers on map if no clustering
+        markers[id].forEach((marker) => marker.setMap(maps[id]));
       }
 
-      markerClusterer[id] = new MarkerClusterer(maps[id], markers[id], {
-        imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m',
-        gridSize: 60,
-        maxZoom: 15,
-      });
-    } else {
-      // Set markers on map if no clustering
-      markers[id].forEach((marker) => marker.setMap(maps[id]));
-    }
+      // Fit map to bounds with auto-zoom
+      if (facilities.length === 1) {
+        maps[id].setCenter(bounds.getCenter());
+        maps[id].setZoom(15);
+      } else if (facilities.length > 1) {
+        maps[id].fitBounds(bounds);
 
-    // Fit map to bounds with auto-zoom
-    if (facilities.length === 1) {
-      maps[id].setCenter(bounds.getCenter());
-      maps[id].setZoom(15);
-    } else if (facilities.length > 1) {
-      maps[id].fitBounds(bounds);
-
-      // Ensure minimum zoom level
-      google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
-        if (maps[id].getZoom() > 15) {
-          maps[id].setZoom(15);
-        }
-      });
+        // Ensure minimum zoom level
+        google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
+          if (maps[id].getZoom() > 15) {
+            maps[id].setZoom(15);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Google Maps error:', error);
+      $mapContainer.html(`
+      <div style="padding: 40px; text-align: center; background: #fee2e2; border-radius: 8px;">
+        <h3 style="color: #dc2626; margin: 0 0 8px 0;">Map Loading Error</h3>
+        <p style="color: #991b1b; margin: 0;">Unable to load Google Maps. Please check your API key and internet connection.</p>
+      </div>
+    `);
     }
   };
 

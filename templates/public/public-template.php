@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Public-facing template for the facility locator with Recovery.com + Google Maps style
- * Optimized version with external CSS
+ * Public-facing template for the facility locator
+ * Ensures proper HTML structure and popup display
  *
  * @var string $id          Unique identifier for this instance
  * @var string $cta_text    Text for the CTA button
@@ -88,7 +88,7 @@ if (!defined('ABSPATH')) {
     </div>
 
     <!-- Multi-step Form Popup (for initial form) -->
-    <div id="<?php echo esc_attr($id); ?>-popup" class="facility-locator-popup">
+    <div id="<?php echo esc_attr($id); ?>-popup" class="facility-locator-popup" style="display: none;">
         <div class="facility-locator-popup-content">
             <button type="button" class="facility-locator-popup-close">&times;</button>
 

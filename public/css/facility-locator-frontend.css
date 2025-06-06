@@ -1,9 +1,9 @@
 /**
  * Frontend CSS for Recovery.com + Google Maps style interface
- * Redesigned to match Recovery.com styling with Google Maps layout
+ * Complete file with all styles - FIXED VERSION
  */
 
-/* Base Styles */
+/* Base Styles - FIXED */
 .facility-locator-container {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   position: relative;
@@ -13,11 +13,6 @@
 
 /* CTA Button - Initial State */
 .facility-locator-cta {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  padding: 20px;
   position: relative;
   z-index: 1;
 }
@@ -32,8 +27,8 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  background: var(--cta-color, #007bff);
-  backdrop-filter: none;
+  /* Background color comes from inline style */
+  background: #007bff; /* Fallback */
 }
 
 .facility-locator-cta-button:hover {
@@ -42,18 +37,226 @@
   opacity: 0.9;
 }
 
-/* Main Interface Layout */
+/* Main Interface Layout - FIXED */
 .facility-locator-main-interface {
   width: 100%;
   height: 100%;
   position: relative;
-  display: none;
+  display: none; /* Initially hidden */
   flex-direction: column;
 }
 
 /* When main interface is shown */
 .facility-locator-main-interface.active {
   display: flex;
+}
+
+/* Form Popup Styles - ENHANCED FOR DISPLAY ISSUES */
+.facility-locator-popup {
+  display: none !important; /* Force hidden by default */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  z-index: 99999 !important; /* Very high z-index */
+  overflow: auto !important;
+}
+
+/* When popup is shown via JavaScript */
+.facility-locator-popup[style*='display: block'] {
+  display: block !important;
+}
+
+.facility-locator-popup-content {
+  position: relative;
+  background-color: #fff;
+  margin: 50px auto;
+  padding: 30px;
+  width: 80%;
+  max-width: 800px;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  min-height: 200px;
+  /* Ensure visibility */
+  z-index: 1;
+}
+
+.facility-locator-popup-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 28px;
+  font-weight: bold;
+  color: #888;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  text-align: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  z-index: 2; /* Above content */
+}
+
+.facility-locator-popup-close:hover {
+  color: #333;
+  background-color: #f0f0f0;
+}
+
+/* Form container styling */
+.facility-locator-form {
+  padding: 10px 0;
+  min-height: 150px;
+}
+
+.facility-locator-form h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #333;
+  text-align: center;
+}
+
+/* Ensure steps are properly displayed */
+.facility-locator-steps {
+  min-height: 200px;
+}
+
+.facility-locator-step {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.facility-locator-step.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-columns-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin: 20px 0;
+}
+
+.facility-locator-column {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.facility-locator-column h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.facility-locator-field-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.facility-locator-field-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.facility-locator-field-option input[type='radio'],
+.facility-locator-field-option input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.facility-locator-field-option label {
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.facility-locator-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  color: #374151;
+}
+
+.facility-locator-form-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.facility-locator-prev-btn,
+.facility-locator-next-btn,
+.facility-locator-submit-btn {
+  padding: 12px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.facility-locator-prev-btn {
+  background: #6b7280;
+}
+
+.facility-locator-prev-btn:hover {
+  background: #4b5563;
+}
+
+.facility-locator-next-btn:hover,
+.facility-locator-submit-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.facility-locator-form-skip {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.facility-locator-skip-link {
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.facility-locator-skip-link:hover {
+  color: #374151;
+  text-decoration: underline;
 }
 
 /* Sticky Filter Bar - Recovery.com Style */
@@ -740,72 +943,22 @@
   background: #2563eb;
 }
 
-/* Form Popup Styles */
-.facility-locator-popup {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  z-index: 9999;
-  overflow: auto;
-}
-
-.facility-locator-popup-content {
-  position: relative;
-  background-color: #fff;
-  margin: 50px auto;
-  padding: 30px;
-  width: 80%;
-  max-width: 800px;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  min-height: 200px;
-}
-
-.facility-locator-popup-close {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  font-size: 28px;
-  font-weight: bold;
-  color: #888;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  line-height: 30px;
-  text-align: center;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  z-index: 1;
-}
-
-.facility-locator-popup-close:hover {
-  color: #333;
-  background-color: #f0f0f0;
-}
-
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .facility-locator-popup-content {
-    width: 95%;
-    margin: 20px auto;
-    padding: 20px;
-    max-height: 90vh;
-    overflow-y: auto;
+    width: 95% !important;
+    margin: 20px auto !important;
+    padding: 20px !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
   }
 
   .facility-locator-popup {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
   }
 
   .facility-locator-container {
@@ -976,157 +1129,6 @@
   background: #94a3b8;
 }
 
-/* Form Step Styles */
-.facility-locator-steps {
-  min-height: 200px;
-}
-
-.facility-locator-step {
-  display: none;
-  animation: fadeIn 0.3s ease;
-}
-
-.facility-locator-step.active {
-  display: block;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.form-columns-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 24px;
-  margin: 20px 0;
-}
-
-.facility-locator-column {
-  background: #f8fafc;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-
-.facility-locator-column h3 {
-  margin: 0 0 16px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.facility-locator-field-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.facility-locator-field-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.facility-locator-field-option input[type='radio'],
-.facility-locator-field-option input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  accent-color: #3b82f6;
-}
-
-.facility-locator-field-option label {
-  font-size: 14px;
-  color: #374151;
-  cursor: pointer;
-  line-height: 1.4;
-}
-
-.facility-locator-select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: white;
-  font-size: 14px;
-  color: #374151;
-}
-
-/* Form container styling */
-.facility-locator-form {
-  padding: 10px 0;
-  min-height: 150px;
-}
-
-.facility-locator-form h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 24px;
-  color: #333;
-  text-align: center;
-}
-
-.facility-locator-form-navigation {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.facility-locator-prev-btn,
-.facility-locator-next-btn,
-.facility-locator-submit-btn {
-  padding: 12px 24px;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.facility-locator-prev-btn {
-  background: #6b7280;
-}
-
-.facility-locator-prev-btn:hover {
-  background: #4b5563;
-}
-
-.facility-locator-next-btn:hover,
-.facility-locator-submit-btn:hover {
-  background: #2563eb;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}
-
-.facility-locator-form-skip {
-  margin-top: 16px;
-  text-align: center;
-}
-
-.facility-locator-skip-link {
-  color: #6b7280;
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.2s ease;
-}
-
-.facility-locator-skip-link:hover {
-  color: #374151;
-  text-decoration: underline;
-}
-
 /* Enhanced Animations */
 .facility-card {
   animation: slideInLeft 0.3s ease;
@@ -1250,4 +1252,31 @@
   .filter-option:hover {
     background: #4b5563;
   }
+}
+
+/* Reset any theme overrides that might interfere */
+.facility-locator-popup * {
+  box-sizing: border-box;
+}
+
+/* Prevent theme interference */
+.facility-locator-popup p {
+  margin: 0 0 1em 0;
+}
+
+.facility-locator-popup h1,
+.facility-locator-popup h2,
+.facility-locator-popup h3,
+.facility-locator-popup h4,
+.facility-locator-popup h5,
+.facility-locator-popup h6 {
+  margin: 0 0 0.5em 0;
+  font-weight: 600;
+}
+
+/* Ensure buttons are visible and clickable */
+.facility-locator-popup button {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }

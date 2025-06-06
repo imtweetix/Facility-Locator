@@ -1,10 +1,9 @@
 /**
  * Enhanced Frontend JavaScript for Recovery.com + Google Maps style interface
- * Complete rewrite with proper jQuery implementation and ES6 features
- * FIXED: Form submission filtering and filter bar synchronization
+ * FIXED: Form configuration respect and filter deselection
  */
 (($) => {
-  'use strict';
+  ('use strict');
 
   // Store map instances and data
   const maps = {};
@@ -92,7 +91,7 @@
       // Validate template elements
       if (!validateTemplateElements($container, id)) {
         console.error('Template validation failed for container:', id);
-        return; // Skip this container
+        return;
       }
 
       // Initialize data storage
@@ -129,15 +128,12 @@
     const $skipLink = $popup.find('.facility-locator-skip-link');
 
     console.log('Initializing event listeners for container:', id);
-    console.log('CTA Button found:', $ctaButton.length);
-    console.log('Popup found:', $popup.length);
 
     // CTA button click - show popup
     $ctaButton.on('click', (e) => {
       e.preventDefault();
       console.log('CTA button clicked, showing popup');
 
-      // Ensure popup is visible with proper z-index
       $popup
         .css({
           display: 'block',
@@ -196,7 +192,7 @@
   };
 
   /**
-   * Initialize delegated event listeners for dynamic content
+   * FIXED: Initialize delegated event listeners with proper filter handling
    */
   const initDelegatedEventListeners = ($container, id) => {
     // Filter interactions
@@ -221,11 +217,17 @@
       }
     });
 
-    // Filter option selection
-    $(document).on('change', '.filter-option input[type="checkbox"]', function () {
-      const $container = $(this).closest('.facility-locator-container');
-      const id = $container.attr('id');
-      updateFilters($container, id);
+    // FIXED: Filter option selection with proper deselection support
+    $(document).on('click', '.filter-option input[type="checkbox"]', function (e) {
+      // Don't prevent default - let the checkbox change naturally
+      const $checkbox = $(this);
+
+      // Small delay to ensure checkbox state has updated
+      setTimeout(() => {
+        const $container = $checkbox.closest('.facility-locator-container');
+        const id = $container.attr('id');
+        updateFilters($container, id);
+      }, 10);
     });
 
     // Clear all filters
@@ -378,8 +380,8 @@
     if (step.columns && step.columns.length > 0) {
       const $columnsContainer = $('<div>').addClass('form-columns-container');
 
-      step.columns.forEach((column) => {
-        $columnsContainer.append(buildColumn(column));
+      step.columns.forEach((column, columnIndex) => {
+        $columnsContainer.append(buildColumn(column, index, columnIndex));
       });
 
       $step.append($columnsContainer);
@@ -389,13 +391,20 @@
   };
 
   /**
-   * Build a form column with proper taxonomy mapping
+   * FIXED: Build a form column with proper option handling (manual + taxonomy)
    */
-  const buildColumn = (column) => {
+  const buildColumn = (column, stepIndex, columnIndex) => {
     const $column = $('<div>').addClass('facility-locator-column');
 
-    // Use taxonomy type as field name if available, otherwise generate random ID
-    const fieldId = column.taxonomy || `column_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate unique field name for radio buttons to prevent conflicts
+    let fieldId;
+    if (column.type === 'radio') {
+      fieldId = column.taxonomy
+        ? `${column.taxonomy}_step${stepIndex}_col${columnIndex}`
+        : `column_${stepIndex}_${columnIndex}`;
+    } else {
+      fieldId = column.taxonomy || `column_${stepIndex}_${columnIndex}`;
+    }
 
     if (column.header) {
       $column.append($('<h3>').text(column.header));
@@ -417,19 +426,23 @@
   };
 
   /**
-   * Build radio field with proper taxonomy mapping
+   * FIXED: Build radio field respecting manual options AND their order
    */
   const buildRadioField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
-    // Get options from taxonomy if specified, otherwise use manual options
     let options = [];
-    if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
-      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
-    } else if (column.options && Array.isArray(column.options)) {
+
+    // FIXED: Prioritize manual options if they exist, maintain their order
+    if (column.options && Array.isArray(column.options) && column.options.length > 0) {
+      console.log('Using manual options for column:', column.header, column.options);
       options = column.options;
+    } else if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
+      console.log('Using taxonomy options for column:', column.header);
+      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
     }
 
+    // Build options in the exact order they appear
     options.forEach((option) => {
       const optionValue = option.id || option.value;
       const optionLabel = option.name || option.label;
@@ -437,37 +450,46 @@
 
       const $option = $('<div>').addClass('facility-locator-field-option');
 
-      $option.append(
-        $('<input>').attr({
-          type: 'radio',
-          id: optionId,
-          name: fieldId,
-          value: optionValue,
-        })
-      );
+      const $input = $('<input>').attr({
+        type: 'radio',
+        id: optionId,
+        name: fieldId, // Each column gets unique name
+        value: optionValue,
+      });
 
+      // Store taxonomy type as data attribute for proper filtering
+      if (column.taxonomy) {
+        $input.attr('data-taxonomy', column.taxonomy);
+      }
+
+      $option.append($input);
       $option.append($('<label>').attr('for', optionId).text(optionLabel));
 
       $container.append($option);
     });
 
+    console.log('Built radio field with', options.length, 'options for', column.header);
     return $container;
   };
 
   /**
-   * Build checkbox field with proper taxonomy mapping
+   * FIXED: Build checkbox field respecting manual options AND their order
    */
   const buildCheckboxField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
-    // Get options from taxonomy if specified, otherwise use manual options
     let options = [];
-    if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
-      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
-    } else if (column.options && Array.isArray(column.options)) {
+
+    // FIXED: Prioritize manual options if they exist, maintain their order
+    if (column.options && Array.isArray(column.options) && column.options.length > 0) {
+      console.log('Using manual options for column:', column.header, column.options);
       options = column.options;
+    } else if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
+      console.log('Using taxonomy options for column:', column.header);
+      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
     }
 
+    // Build options in the exact order they appear
     options.forEach((option) => {
       const optionValue = option.id || option.value;
       const optionLabel = option.name || option.label;
@@ -475,25 +497,30 @@
 
       const $option = $('<div>').addClass('facility-locator-field-option');
 
-      $option.append(
-        $('<input>').attr({
-          type: 'checkbox',
-          id: optionId,
-          name: `${fieldId}[]`,
-          value: optionValue,
-        })
-      );
+      const $input = $('<input>').attr({
+        type: 'checkbox',
+        id: optionId,
+        name: `${fieldId}[]`,
+        value: optionValue,
+      });
 
+      // Store taxonomy type as data attribute for proper filtering
+      if (column.taxonomy) {
+        $input.attr('data-taxonomy', column.taxonomy);
+      }
+
+      $option.append($input);
       $option.append($('<label>').attr('for', optionId).text(optionLabel));
 
       $container.append($option);
     });
 
+    console.log('Built checkbox field with', options.length, 'options for', column.header);
     return $container;
   };
 
   /**
-   * Build dropdown field with proper taxonomy mapping
+   * FIXED: Build dropdown field respecting manual options AND their order
    */
   const buildDropdownField = (column, fieldId) => {
     const $select = $('<select>')
@@ -503,20 +530,29 @@
       })
       .addClass('facility-locator-select');
 
+    // Store taxonomy type as data attribute for proper filtering
+    if (column.taxonomy) {
+      $select.attr('data-taxonomy', column.taxonomy);
+    }
+
     $select.append(
       $('<option>')
         .val('')
         .text(`Select ${column.header || 'Option'}`)
     );
 
-    // Get options from taxonomy if specified, otherwise use manual options
     let options = [];
-    if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
-      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
-    } else if (column.options && Array.isArray(column.options)) {
+
+    // FIXED: Prioritize manual options if they exist, maintain their order
+    if (column.options && Array.isArray(column.options) && column.options.length > 0) {
+      console.log('Using manual options for dropdown:', column.header, column.options);
       options = column.options;
+    } else if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
+      console.log('Using taxonomy options for dropdown:', column.header);
+      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
     }
 
+    // Build options in the exact order they appear
     options.forEach((option) => {
       const optionValue = option.id || option.value;
       const optionLabel = option.name || option.label;
@@ -524,6 +560,7 @@
       $select.append($('<option>').val(optionValue).text(optionLabel));
     });
 
+    console.log('Built dropdown field with', options.length, 'options for', column.header);
     return $select;
   };
 
@@ -600,33 +637,34 @@
   };
 
   /**
-   * FIXED: Submit form and show main interface with proper filter processing
+   * Submit form and process data by taxonomy type
    */
   const submitForm = ($container, id) => {
     console.log('Submitting form for container:', id);
 
     const $form = $container.find('form');
-    const formData = $form.serializeArray();
     const processedData = {};
 
-    // Process form data and convert to taxonomy filters
-    formData.forEach((field) => {
-      if (field.name.endsWith('[]')) {
-        // Handle checkbox arrays
-        const fieldName = field.name.slice(0, -2);
-        if (!processedData[fieldName]) {
-          processedData[fieldName] = [];
+    // Process form data by taxonomy type instead of field name
+    $form.find('input:checked, select').each(function () {
+      const $input = $(this);
+      const taxonomyType = $input.data('taxonomy');
+      const value = $input.val();
+
+      // Only process if taxonomy type exists and value is not empty
+      if (taxonomyType && value && value.trim() !== '') {
+        if (!processedData[taxonomyType]) {
+          processedData[taxonomyType] = [];
         }
-        processedData[fieldName].push(field.value);
-      } else {
-        // Handle single values (radio, select)
-        if (field.value && field.value.trim() !== '') {
-          processedData[field.name] = [field.value]; // Convert to array for consistency
+
+        // Avoid duplicates
+        if (processedData[taxonomyType].indexOf(value) === -1) {
+          processedData[taxonomyType].push(value);
         }
       }
     });
 
-    console.log('Form data processed:', processedData);
+    console.log('Form data processed by taxonomy:', processedData);
 
     // Close popup and show main interface
     const $popup = $container.find('.facility-locator-popup');
@@ -643,10 +681,8 @@
   const showAllFacilities = ($container, id) => {
     console.log('Showing all facilities for container:', id);
 
-    // Close popup with fade effect
     const $popup = $container.find('.facility-locator-popup');
     $popup.fadeOut(300, () => {
-      // Show main interface after popup closes
       showMainInterface($container, id, {});
     });
 
@@ -654,7 +690,7 @@
   };
 
   /**
-   * FIXED: Show main interface with proper filter initialization
+   * Show main interface with proper filter initialization
    */
   const showMainInterface = ($container, id, formData = {}) => {
     console.log('Showing main interface for container:', id);
@@ -668,7 +704,7 @@
     const $mainInterface = $container.find('.facility-locator-main-interface');
     $mainInterface.addClass('active').fadeIn(300);
 
-    // Store initial form data as filters - ensure proper format
+    // Store initial form data as filters
     activeFilters[id] = { ...formData };
 
     console.log('Active filters set:', activeFilters[id]);
@@ -721,7 +757,7 @@
   };
 
   /**
-   * FIXED: Render filter bar with pre-selected form choices
+   * Render filter bar with pre-selected form choices
    */
   const renderFilterBar = ($container, id, filters) => {
     const $filterItems = $container.find('.filter-items');
@@ -949,7 +985,7 @@
     Object.keys(facilityLocator.availableTaxonomies).forEach((taxonomyType) => {
       const names = facility[`${taxonomyType}_names`];
       if (names && names.length > 0) {
-        features.push(...names.slice(0, 3)); // Limit to 3 per taxonomy
+        features.push(...names.slice(0, 3));
       }
     });
 
@@ -1002,7 +1038,7 @@
   };
 
   /**
-   * Render Google Map with enhanced pin functionality
+   * FIXED: Render Google Map with proper AdvancedMarkerElement implementation
    */
   const renderMap = async ($container, id, facilities) => {
     const $mapContainer = $container.find(`#${id}-map`);
@@ -1010,11 +1046,11 @@
     // Check if API key is available
     if (!facilityLocator.hasApiKey) {
       $mapContainer.html(`
-      <div style="padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
-        <h3 style="color: #6b7280; margin: 0 0 8px 0;">Google Maps API Key Required</h3>
-        <p style="color: #9ca3af; margin: 0;">Please configure your Google Maps API key to view the map.</p>
-      </div>
-    `);
+    <div style="padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+      <h3 style="color: #6b7280; margin: 0 0 8px 0;">Google Maps API Key Required</h3>
+      <p style="color: #9ca3af; margin: 0;">Please configure your Google Maps API key to view the map.</p>
+    </div>
+  `);
       return;
     }
 
@@ -1022,6 +1058,471 @@
       // Wait for Google Maps to be ready
       await checkGoogleMapsReady();
 
+      // FIXED: Import the AdvancedMarkerElement library
+      if (!window.google.maps.marker) {
+        await window.google.maps.importLibrary('marker');
+      }
+
+      if (!maps[id]) {
+        // FIXED: Create map without styles when using mapId (styles controlled via Cloud Console)
+        const mapOptions = {
+          zoom: parseInt(facilityLocator.settings?.mapZoom) || 10,
+          center: { lat: 40.7128, lng: -74.006 },
+          mapTypeControl: true,
+          scrollwheel: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+          // FIXED: Use mapId without styles to avoid warning
+          mapId: 'DEMO_MAP_ID', // You can create a custom mapId in Google Cloud Console
+        };
+
+        // FIXED: Only add styles if no mapId is present
+        // Since we're using mapId, styles should be configured in Google Cloud Console
+        // If you want to use styles, remove the mapId and uncomment the styles below:
+        /*
+      if (!mapOptions.mapId) {
+        mapOptions.styles = [
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }],
+          },
+        ];
+      }
+      */
+
+        maps[id] = new google.maps.Map($mapContainer[0], mapOptions);
+        markers[id] = [];
+        infoWindows[id] = [];
+      }
+
+      // Clear existing markers and clusterer
+      clearMarkers(id);
+
+      if (!facilities || facilities.length === 0) {
+        return;
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+
+      // Create markers with FIXED AdvancedMarkerElement
+      facilities.forEach((facility, index) => {
+        const position = {
+          lat: parseFloat(facility.lat),
+          lng: parseFloat(facility.lng),
+        };
+
+        // FIXED: Create pin element for AdvancedMarkerElement
+        const pinElement = createPinElement(facility);
+
+        // FIXED: Use AdvancedMarkerElement with proper constructor
+        const marker = new google.maps.marker.AdvancedMarkerElement({
+          position,
+          map: maps[id],
+          title: facility.name,
+          content: pinElement,
+        });
+
+        // Create info window
+        const infoWindow = new google.maps.InfoWindow({
+          content: createInfoWindowContent(facility),
+        });
+
+        // FIXED: Use proper event listener for AdvancedMarkerElement
+        marker.addListener('gmp-click', () => {
+          // Close all info windows
+          infoWindows[id].forEach((window) => window.close());
+
+          // Open this info window at marker position
+          infoWindow.open(maps[id], marker);
+
+          // Highlight facility card and show details
+          highlightFacilityCard(facility.id);
+          showFacilityDetails($container, facility.id);
+        });
+
+        markers[id].push(marker);
+        infoWindows[id].push(infoWindow);
+        bounds.extend(position);
+      });
+
+      // FIXED: Updated clustering - check if MarkerClusterer is available and use correct constructor
+      if (typeof MarkerClusterer !== 'undefined') {
+        if (markerClusterer[id]) {
+          markerClusterer[id].clearMarkers();
+        }
+
+        try {
+          // FIXED: Use correct MarkerClusterer constructor
+          markerClusterer[id] = new MarkerClusterer({
+            map: maps[id],
+            markers: markers[id],
+          });
+        } catch (clusterError) {
+          console.log('Marker clustering failed, using individual markers:', clusterError.message);
+          // Markers are already added to map via AdvancedMarkerElement constructor
+        }
+      } else {
+        console.log('MarkerClusterer not available, using individual markers');
+        // Markers are already added to map via AdvancedMarkerElement constructor
+      }
+
+      // Fit map to bounds with auto-zoom
+      if (facilities.length === 1) {
+        maps[id].setCenter(bounds.getCenter());
+        maps[id].setZoom(15);
+      } else if (facilities.length > 1) {
+        maps[id].fitBounds(bounds);
+
+        // Ensure minimum zoom level
+        google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
+          if (maps[id].getZoom() > 15) {
+            maps[id].setZoom(15);
+          }
+        });
+      }
+
+      console.log('Map rendered successfully with AdvancedMarkerElement');
+    } catch (error) {
+      console.error('Google Maps error:', error);
+
+      // FALLBACK: Use simple map without clustering if AdvancedMarkerElement fails
+      console.warn('Falling back to simple map due to error:', error.message);
+      renderSimpleMap($container, id, facilities);
+    }
+  };
+
+  /**
+   * FIXED: Create pin element for AdvancedMarkerElement with proper styling
+   */
+  const createPinElement = (facility) => {
+    const defaultPinImage = facilityLocator.settings?.defaultPinImage;
+
+    // Create container element
+    const pinElement = document.createElement('div');
+    pinElement.className = 'custom-marker';
+    pinElement.style.cssText = `
+    width: 32px;
+    height: 40px;
+    position: relative;
+    cursor: pointer;
+    transform-origin: bottom center;
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+    // FIXED: Use proper hover events that work with AdvancedMarkerElement
+    pinElement.addEventListener('mouseenter', () => {
+      pinElement.style.transform = 'scale(1.1)';
+      pinElement.style.zIndex = '1000';
+    });
+
+    pinElement.addEventListener('mouseleave', () => {
+      pinElement.style.transform = 'scale(1)';
+      pinElement.style.zIndex = 'auto';
+    });
+
+    // Determine pin image
+    let pinImageUrl = null;
+    if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
+      pinImageUrl = facility.custom_pin_image;
+    } else if (defaultPinImage && defaultPinImage.trim() !== '') {
+      pinImageUrl = defaultPinImage;
+    }
+
+    if (pinImageUrl) {
+      // Use custom image
+      const imgElement = document.createElement('img');
+      imgElement.src = pinImageUrl;
+      imgElement.style.cssText = `
+      width: 32px;
+      height: 40px;
+      object-fit: contain;
+      display: block;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    `;
+      imgElement.alt = facility.name;
+
+      // Handle image load errors
+      imgElement.onerror = () => {
+        console.warn('Failed to load custom pin image:', pinImageUrl);
+        // Replace with default pin
+        pinElement.innerHTML = '';
+        pinElement.appendChild(createDefaultPin());
+      };
+
+      pinElement.appendChild(imgElement);
+    } else {
+      // Use default pin
+      pinElement.appendChild(createDefaultPin());
+    }
+
+    return pinElement;
+  };
+
+  /**
+   * FIXED: Create default pin element
+   */
+  const createDefaultPin = () => {
+    const pinDiv = document.createElement('div');
+    pinDiv.style.cssText = `
+    width: 32px;
+    height: 40px;
+    background: #3b82f6;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    border: 3px solid white;
+  `;
+
+    // Add inner circle
+    const innerCircle = document.createElement('div');
+    innerCircle.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-radius: 50%;
+  `;
+
+    pinDiv.appendChild(innerCircle);
+    return pinDiv;
+  };
+
+  /**
+   * FIXED: Create info window content
+   */
+  const createInfoWindowContent = (facility) => {
+    return `
+    <div style="padding: 12px; min-width: 200px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <h4 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #111827;">${facility.name}</h4>
+      <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 14px; line-height: 1.4;">${facility.address}</p>
+      ${
+        facility.phone
+          ? `<p style="margin: 0 0 4px 0; font-size: 14px; color: #374151;"><strong>Phone:</strong> <a href="tel:${facility.phone}" style="color: #3b82f6; text-decoration: none;">${facility.phone}</a></p>`
+          : ''
+      }
+      ${
+        facility.website
+          ? `<p style="margin: 0; font-size: 14px;"><a href="${facility.website}" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 500;">Visit Website →</a></p>`
+          : ''
+      }
+    </div>
+  `;
+  };
+
+  /**
+   * Get default pin SVG
+   */
+  const getDefaultPinSVG = () => {
+    return `
+    <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="pin-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.3)"/>
+        </filter>
+      </defs>
+      <path d="M16 0C7.2 0 0 7.2 0 16c0 16 16 24 16 24s16-8 16-24c0-8.8-7.2-16-16-16z" 
+            fill="#3b82f6" filter="url(#pin-shadow)"/>
+      <circle cx="16" cy="16" r="8" fill="white"/>
+      <circle cx="16" cy="16" r="4" fill="#3b82f6"/>
+    </svg>
+  `;
+  };
+
+  /**
+   * FIXED: Clear markers for AdvancedMarkerElement
+   */
+  const clearMarkers = (id) => {
+    if (markerClusterer[id]) {
+      if (typeof markerClusterer[id].clearMarkers === 'function') {
+        markerClusterer[id].clearMarkers();
+      }
+      markerClusterer[id] = null;
+    }
+
+    if (markers[id]) {
+      markers[id].forEach((marker) => {
+        // FIXED: AdvancedMarkerElement uses map property
+        if (marker && marker.map) {
+          marker.map = null;
+        }
+      });
+      markers[id] = [];
+    }
+
+    if (infoWindows[id]) {
+      infoWindows[id].forEach((window) => {
+        if (window && typeof window.close === 'function') {
+          window.close();
+        }
+      });
+      infoWindows[id] = [];
+    }
+  };
+
+  /**
+   * SIMPLE MAP FALLBACK: Render basic map without clustering or advanced features
+   */
+  const renderSimpleMap = async ($container, id, facilities) => {
+    const $mapContainer = $container.find(`#${id}-map`);
+
+    try {
+      if (!maps[id]) {
+        // Create simple map without mapId or advanced features
+        maps[id] = new google.maps.Map($mapContainer[0], {
+          zoom: parseInt(facilityLocator.settings?.mapZoom) || 10,
+          center: { lat: 40.7128, lng: -74.006 },
+          mapTypeControl: true,
+          scrollwheel: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+          // Basic styling without mapId
+          styles: [
+            {
+              featureType: 'poi',
+              elementType: 'labels',
+              stylers: [{ visibility: 'off' }],
+            },
+          ],
+        });
+
+        markers[id] = [];
+        infoWindows[id] = [];
+      }
+
+      // Clear existing markers
+      if (markers[id]) {
+        markers[id].forEach((marker) => {
+          if (marker && typeof marker.setMap === 'function') {
+            marker.setMap(null);
+          }
+        });
+        markers[id] = [];
+      }
+
+      if (!facilities || facilities.length === 0) {
+        return;
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+
+      // Try AdvancedMarkerElement first, fallback to legacy if needed
+      let useAdvancedMarkers = true;
+      try {
+        if (!window.google.maps.marker) {
+          await window.google.maps.importLibrary('marker');
+        }
+      } catch (error) {
+        console.warn('AdvancedMarkerElement not available, using legacy markers');
+        useAdvancedMarkers = false;
+      }
+
+      // Create markers
+      facilities.forEach((facility, index) => {
+        const position = {
+          lat: parseFloat(facility.lat),
+          lng: parseFloat(facility.lng),
+        };
+
+        let marker;
+
+        if (useAdvancedMarkers) {
+          // Use AdvancedMarkerElement
+          const pinElement = createPinElement(facility);
+
+          marker = new google.maps.marker.AdvancedMarkerElement({
+            position,
+            map: maps[id],
+            title: facility.name,
+            content: pinElement,
+          });
+        } else {
+          // Fallback to legacy markers
+          const defaultPinImage = facilityLocator.settings?.defaultPinImage;
+          let pinIcon = null;
+
+          if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
+            pinIcon = {
+              url: facility.custom_pin_image,
+              scaledSize: new google.maps.Size(32, 40),
+              anchor: new google.maps.Point(16, 40),
+            };
+          } else if (defaultPinImage && defaultPinImage.trim() !== '') {
+            pinIcon = {
+              url: defaultPinImage,
+              scaledSize: new google.maps.Size(32, 40),
+              anchor: new google.maps.Point(16, 40),
+            };
+          }
+
+          marker = new google.maps.Marker({
+            position,
+            map: maps[id],
+            title: facility.name,
+            icon: pinIcon,
+          });
+        }
+
+        // Create info window
+        const infoWindow = new google.maps.InfoWindow({
+          content: createInfoWindowContent(facility),
+        });
+
+        // Add click listener
+        const eventType = useAdvancedMarkers ? 'gmp-click' : 'click';
+        marker.addListener(eventType, () => {
+          infoWindows[id].forEach((window) => window.close());
+          infoWindow.open(maps[id], marker);
+          highlightFacilityCard(facility.id);
+          showFacilityDetails($container, facility.id);
+        });
+
+        markers[id].push(marker);
+        infoWindows[id].push(infoWindow);
+        bounds.extend(position);
+      });
+
+      // Fit map to bounds
+      if (facilities.length === 1) {
+        maps[id].setCenter(bounds.getCenter());
+        maps[id].setZoom(15);
+      } else if (facilities.length > 1) {
+        maps[id].fitBounds(bounds);
+
+        google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
+          if (maps[id].getZoom() > 15) {
+            maps[id].setZoom(15);
+          }
+        });
+      }
+
+      console.log('Simple map rendered successfully');
+    } catch (error) {
+      console.error('Simple map rendering failed:', error);
+      $mapContainer.html(`
+    <div style="padding: 40px; text-align: center; background: #fee2e2; border-radius: 8px;">
+      <h3 style="color: #dc2626; margin: 0 0 8px 0;">Map Loading Error</h3>
+      <p style="color: #991b1b; margin: 0;">Unable to load Google Maps. Please check your API key and internet connection.</p>
+    </div>
+  `);
+    }
+  };
+
+  /**
+   * LEGACY FALLBACK: Render map with old google.maps.Marker
+   */
+  const renderMapLegacy = async ($container, id, facilities) => {
+    const $mapContainer = $container.find(`#${id}-map`);
+
+    try {
       if (!maps[id]) {
         maps[id] = new google.maps.Map($mapContainer[0], {
           zoom: parseInt(facilityLocator.settings?.mapZoom) || 10,
@@ -1043,8 +1544,11 @@
         infoWindows[id] = [];
       }
 
-      // Clear existing markers and clusterer
-      clearMarkers(id);
+      // Clear existing markers
+      if (markers[id]) {
+        markers[id].forEach((marker) => marker.setMap(null));
+        markers[id] = [];
+      }
 
       if (!facilities || facilities.length === 0) {
         return;
@@ -1053,40 +1557,24 @@
       const bounds = new google.maps.LatLngBounds();
       const defaultPinImage = facilityLocator.settings?.defaultPinImage;
 
-      // Create markers with custom pins
+      // Create legacy markers
       facilities.forEach((facility, index) => {
         const position = {
           lat: parseFloat(facility.lat),
           lng: parseFloat(facility.lng),
         };
 
-        // Determine pin image
+        // Determine pin icon for legacy marker
         let pinIcon = null;
         if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
-          // Use facility's custom pin
           pinIcon = {
             url: facility.custom_pin_image,
             scaledSize: new google.maps.Size(32, 40),
             anchor: new google.maps.Point(16, 40),
           };
         } else if (defaultPinImage && defaultPinImage.trim() !== '') {
-          // Use default custom pin
           pinIcon = {
             url: defaultPinImage,
-            scaledSize: new google.maps.Size(32, 40),
-            anchor: new google.maps.Point(16, 40),
-          };
-        } else {
-          // Use default Google Maps pin with custom color
-          pinIcon = {
-            url:
-              'data:image/svg+xml;charset=UTF-8,' +
-              encodeURIComponent(`
-            <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 0C7.2 0 0 7.2 0 16c0 16 16 24 16 24s16-8 16-24c0-8.8-7.2-16-16-16z" fill="#3b82f6"/>
-              <circle cx="16" cy="16" r="8" fill="white"/>
-            </svg>
-          `),
             scaledSize: new google.maps.Size(32, 40),
             anchor: new google.maps.Point(16, 40),
           };
@@ -1094,6 +1582,7 @@
 
         const marker = new google.maps.Marker({
           position,
+          map: maps[id],
           title: facility.name,
           icon: pinIcon,
         });
@@ -1101,27 +1590,19 @@
         // Create info window
         const infoWindow = new google.maps.InfoWindow({
           content: `
-          <div style="padding: 8px; min-width: 200px;">
-            <h4 style="margin: 0 0 8px 0; font-size: 16px;">${facility.name}</h4>
-            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${facility.address}</p>
-            ${
-              facility.phone
-                ? `<p style="margin: 0; font-size: 14px;"><strong>Phone:</strong> ${facility.phone}</p>`
-                : ''
-            }
-          </div>
-        `,
+        <div style="padding: 8px; min-width: 200px;">
+          <h4 style="margin: 0 0 8px 0; font-size: 16px;">${facility.name}</h4>
+          <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${facility.address}</p>
+          ${
+            facility.phone ? `<p style="margin: 0; font-size: 14px;"><strong>Phone:</strong> ${facility.phone}</p>` : ''
+          }
+        </div>
+      `,
         });
 
-        // Add click listener
         marker.addListener('click', () => {
-          // Close all info windows
           infoWindows[id].forEach((window) => window.close());
-
-          // Open this info window
           infoWindow.open(maps[id], marker);
-
-          // Highlight facility card and show details
           highlightFacilityCard(facility.id);
           showFacilityDetails($container, facility.id);
         });
@@ -1131,62 +1612,23 @@
         bounds.extend(position);
       });
 
-      // Add marker clustering if available
-      if (window.MarkerClusterer && window.markerClusterer) {
-        if (markerClusterer[id]) {
-          markerClusterer[id].clearMarkers();
-        }
-
-        markerClusterer[id] = new markerClusterer.MarkerClusterer({
-          map: maps[id],
-          markers: markers[id],
-        });
-      } else {
-        // Set markers on map if no clustering
-        markers[id].forEach((marker) => marker.setMap(maps[id]));
-      }
-
-      // Fit map to bounds with auto-zoom
+      // Fit map to bounds
       if (facilities.length === 1) {
         maps[id].setCenter(bounds.getCenter());
         maps[id].setZoom(15);
       } else if (facilities.length > 1) {
         maps[id].fitBounds(bounds);
-
-        // Ensure minimum zoom level
-        google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
-          if (maps[id].getZoom() > 15) {
-            maps[id].setZoom(15);
-          }
-        });
       }
+
+      console.warn('Using legacy google.maps.Marker - consider updating Google Maps API setup');
     } catch (error) {
-      console.error('Google Maps error:', error);
+      console.error('Legacy map rendering failed:', error);
       $mapContainer.html(`
-      <div style="padding: 40px; text-align: center; background: #fee2e2; border-radius: 8px;">
-        <h3 style="color: #dc2626; margin: 0 0 8px 0;">Map Loading Error</h3>
-        <p style="color: #991b1b; margin: 0;">Unable to load Google Maps. Please check your API key and internet connection.</p>
-      </div>
-    `);
-    }
-  };
-
-  /**
-   * Clear markers
-   */
-  const clearMarkers = (id) => {
-    if (markerClusterer[id]) {
-      markerClusterer[id].clearMarkers();
-    }
-
-    if (markers[id]) {
-      markers[id].forEach((marker) => marker.setMap(null));
-      markers[id] = [];
-    }
-
-    if (infoWindows[id]) {
-      infoWindows[id].forEach((window) => window.close());
-      infoWindows[id] = [];
+    <div style="padding: 40px; text-align: center; background: #fee2e2; border-radius: 8px;">
+      <h3 style="color: #dc2626; margin: 0 0 8px 0;">Map Loading Error</h3>
+      <p style="color: #991b1b; margin: 0;">Unable to load Google Maps. Please check your API key and internet connection.</p>
+    </div>
+  `);
     }
   };
 
@@ -1213,7 +1655,7 @@
   };
 
   /**
-   * Highlight map pin
+   * FIXED: Highlight map pin for AdvancedMarkerElement
    */
   const highlightMapPin = (id, facilityId) => {
     // Find the facility in our data
@@ -1223,7 +1665,16 @@
     // Find corresponding marker and trigger click
     const facilityIndex = facilitiesData[id].findIndex((f) => f.id == facilityId);
     if (markers[id] && markers[id][facilityIndex]) {
-      google.maps.event.trigger(markers[id][facilityIndex], 'click');
+      const marker = markers[id][facilityIndex];
+
+      // FIXED: Use gmp-click event for AdvancedMarkerElement
+      try {
+        google.maps.event.trigger(marker, 'gmp-click');
+      } catch (error) {
+        console.warn('Could not trigger marker click:', error);
+        // Fallback: just show facility details
+        showFacilityDetails($(`#${id}`), facilityId);
+      }
     }
   };
 
@@ -1360,27 +1811,58 @@
   };
 
   /**
-   * Update filters with AND logic
+   * FIXED: Update filters with proper checkbox state handling and sync
    */
   const updateFilters = ($container, id) => {
-    // Collect selected filters
+    console.log('Updating filters...');
+
+    // Collect selected filters from ALL checkboxes in the container
     const filters = {};
 
-    $container
-      .find(
-        '.filter-option input[type="checkbox"]:checked, .mobile-filter-drawer .filter-option input[type="checkbox"]:checked'
-      )
-      .each(function () {
-        const taxonomyType = $(this).data('taxonomy');
-        const value = $(this).val();
+    // Get all checked checkboxes from both filter areas
+    $container.find('.filter-option input[type="checkbox"]').each(function () {
+      const $checkbox = $(this);
+      const taxonomyType = $checkbox.data('taxonomy');
+      const value = $checkbox.val();
+      const isChecked = $checkbox.is(':checked');
 
+      if (taxonomyType && value) {
         if (!filters[taxonomyType]) {
           filters[taxonomyType] = [];
         }
-        if (filters[taxonomyType].indexOf(value) === -1) {
+
+        if (isChecked && filters[taxonomyType].indexOf(value) === -1) {
           filters[taxonomyType].push(value);
         }
-      });
+      }
+    });
+
+    // FIXED: Sync checkboxes between desktop and mobile
+    $container.find('.filter-option input[type="checkbox"]').each(function () {
+      const $this = $(this);
+      const taxonomyType = $this.data('taxonomy');
+      const value = $this.val();
+      const shouldBeChecked = filters[taxonomyType] && filters[taxonomyType].includes(value);
+
+      // Find corresponding checkbox in other filter area
+      const isMobile = $this.closest('.mobile-filter-drawer').length > 0;
+      const otherSelector = isMobile
+        ? `.filter-dropdown input[data-taxonomy="${taxonomyType}"][value="${value}"]`
+        : `.mobile-filter-drawer input[data-taxonomy="${taxonomyType}"][value="${value}"]`;
+
+      const $otherCheckbox = $container.find(otherSelector);
+
+      // Sync state without triggering events
+      $this.prop('checked', shouldBeChecked);
+      $otherCheckbox.prop('checked', shouldBeChecked);
+    });
+
+    // Clean up empty arrays
+    Object.keys(filters).forEach((key) => {
+      if (filters[key].length === 0) {
+        delete filters[key];
+      }
+    });
 
     activeFilters[id] = filters;
 
@@ -1418,7 +1900,7 @@
   };
 
   /**
-   * FIXED: Check if filter is selected - handle string/number ID comparison
+   * Check if filter is selected - handle string/number ID comparison
    */
   const isFilterSelected = (id, taxonomyType, itemId) => {
     if (!activeFilters[id] || !activeFilters[id][taxonomyType]) {

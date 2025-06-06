@@ -100,23 +100,34 @@ class Facility_Locator_Facilities
 
         global $wpdb;
 
-        // Optimized query with proper indexing
+        // Start with base query
         $query = "SELECT * FROM {$this->table_name}";
         $where_clauses = array();
         $query_params = array();
 
-        // Build WHERE clauses for taxonomy filtering
+        // FIXED: Build WHERE clauses with proper taxonomy filtering
         if (!empty($args)) {
             foreach ($args as $taxonomy_type => $taxonomy_ids) {
                 if (!empty($taxonomy_ids) && is_array($taxonomy_ids)) {
-                    // For multiple selections, use AND logic (facility must match ALL selected criteria)
-                    $taxonomy_conditions = array();
-                    foreach ($taxonomy_ids as $taxonomy_id) {
-                        $taxonomy_conditions[] = "taxonomies LIKE %s";
-                        $query_params[] = '%"' . $taxonomy_type . '"%' . intval($taxonomy_id) . '%';
-                    }
-                    if (!empty($taxonomy_conditions)) {
-                        $where_clauses[] = '(' . implode(' AND ', $taxonomy_conditions) . ')';
+                    // Clean and validate IDs
+                    $clean_ids = array_map('intval', array_filter($taxonomy_ids, 'is_numeric'));
+
+                    if (!empty($clean_ids)) {
+                        // For each taxonomy type, require that facilities match ANY of the selected values (OR logic within taxonomy)
+                        // But facilities must match ALL selected taxonomies (AND logic between taxonomies)
+                        $taxonomy_conditions = array();
+
+                        foreach ($clean_ids as $taxonomy_id) {
+                            // Look for the specific taxonomy type and ID in the JSON structure
+                            $taxonomy_conditions[] = "(taxonomies LIKE %s AND taxonomies LIKE %s)";
+                            $query_params[] = '%"' . $taxonomy_type . '"%';
+                            $query_params[] = '%' . intval($taxonomy_id) . '%';
+                        }
+
+                        if (!empty($taxonomy_conditions)) {
+                            // Use OR within the same taxonomy (any matching value)
+                            $where_clauses[] = '(' . implode(' OR ', $taxonomy_conditions) . ')';
+                        }
                     }
                 }
             }
@@ -136,7 +147,49 @@ class Facility_Locator_Facilities
             $prepared_query = $query;
         }
 
+        if (WP_DEBUG) {
+            error_log('Facility Locator Query: ' . $prepared_query);
+            error_log('Facility Locator Args: ' . print_r($args, true));
+        }
+
         $facilities = $wpdb->get_results($prepared_query);
+
+        // ADDITIONAL FILTERING: Double-check results with proper JSON parsing
+        if ($facilities && !empty($args)) {
+            $facilities = array_filter($facilities, function ($facility) use ($args) {
+                $facility_taxonomies = json_decode($facility->taxonomies, true);
+                if (!is_array($facility_taxonomies)) {
+                    return false;
+                }
+
+                // Check if facility matches ALL required taxonomy filters
+                foreach ($args as $taxonomy_type => $required_ids) {
+                    if (empty($required_ids)) continue;
+
+                    $facility_ids = isset($facility_taxonomies[$taxonomy_type]) ?
+                        (array) $facility_taxonomies[$taxonomy_type] : array();
+
+                    // Check if facility has ANY of the required IDs for this taxonomy
+                    $has_match = false;
+                    foreach ($required_ids as $required_id) {
+                        if (in_array(intval($required_id), array_map('intval', $facility_ids))) {
+                            $has_match = true;
+                            break;
+                        }
+                    }
+
+                    // If no match found for this taxonomy, exclude facility
+                    if (!$has_match) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            // Re-index array
+            $facilities = array_values($facilities);
+        }
 
         // Format data and add taxonomy details
         if ($facilities) {

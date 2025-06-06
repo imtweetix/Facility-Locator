@@ -48,14 +48,15 @@ class Facility_Locator_Public
             true // Load in footer
         );
 
-        // Google Maps API with performance optimization
+        // FIXED: Google Maps API with updated libraries
         $api_key = get_option('facility_locator_google_maps_api_key', '');
         if (!empty($api_key)) {
             // Enqueue Google Maps with proper parameters
             $google_maps_url = add_query_arg(array(
                 'key' => $api_key,
-                'libraries' => 'places',
-                'v' => 'weekly'
+                'libraries' => 'places,marker',
+                'v' => 'weekly',
+                'loading' => 'async'
             ), 'https://maps.googleapis.com/maps/api/js');
 
             wp_enqueue_script(
@@ -66,10 +67,10 @@ class Facility_Locator_Public
                 true
             );
 
-            // Add MarkerClusterer library for performance
+            // FIXED: Use correct MarkerClusterer library
             wp_enqueue_script(
                 'marker-clusterer',
-                'https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js',
+                'https://unpkg.com/@google/markerclusterer/dist/index.min.js',
                 array('google-maps-frontend'),
                 null,
                 true

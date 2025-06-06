@@ -1,7 +1,5 @@
 /**
  * Complete Public-facing CSS for Facility Locator Plugin
- * Merged from facility-locator-public.css and facility-locator-frontend.css
- * Recovery.com + Google Maps style interface
  */
 
 /* =============================================================================
@@ -301,7 +299,7 @@
 }
 
 /* =============================================================================
-     STICKY FILTER BAR - RECOVERY.COM STYLE
+     STICKY FILTER BAR
      ============================================================================= */
 
 .facility-locator-filter-bar {
@@ -537,7 +535,7 @@
 }
 
 /* =============================================================================
-     SIDEBAR - RECOVERY.COM STYLE
+     SIDEBAR
      ============================================================================= */
 
 .facility-locator-sidebar {
@@ -573,7 +571,7 @@
 }
 
 /* =============================================================================
-     FACILITY CARDS - RECOVERY.COM STYLE
+     FACILITY CARDS
      ============================================================================= */
 
 .facility-card {
@@ -647,7 +645,7 @@
 }
 
 /* =============================================================================
-     IMAGE CAROUSEL - RECOVERY.COM STYLE
+     IMAGE CAROUSEL
      ============================================================================= */
 
 .facility-image-carousel {
@@ -757,7 +755,7 @@
 }
 
 /* =============================================================================
-     FEATURE TAGS - RECOVERY.COM STYLE
+     FEATURE TAGS
      ============================================================================= */
 
 .facility-features {
@@ -781,7 +779,7 @@
 }
 
 /* =============================================================================
-     ACTION BUTTONS - RECOVERY.COM STYLE
+     ACTION BUTTONS
      ============================================================================= */
 
 .facility-actions {
@@ -1404,36 +1402,6 @@
     break-inside: avoid;
     border: 1px solid #000;
     margin-bottom: 20px;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .facility-locator-sidebar,
-  .facility-card,
-  .facility-detail-modal {
-    background: #374151;
-    color: #f9fafb;
-  }
-
-  .facility-locator-filter-bar {
-    background: rgba(55, 65, 81, 0.95);
-    border-bottom-color: #4b5563;
-  }
-
-  .filter-dropdown-button {
-    background: #4b5563;
-    border-color: #6b7280;
-    color: #f9fafb;
-  }
-
-  .filter-dropdown-menu {
-    background: #374151;
-    border-color: #4b5563;
-  }
-
-  .filter-option:hover {
-    background: #4b5563;
   }
 }
 

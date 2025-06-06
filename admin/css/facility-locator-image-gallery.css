@@ -1,0 +1,61 @@
+/**
+ * Image Gallery styles for Facility Form
+ * External CSS file for image gallery styling
+ */
+
+.facility-image-item {
+    display: inline-block;
+    margin: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    position: relative;
+    background: #f9f9f9;
+}
+
+.facility-image-item img {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.facility-image-item .remove-image {
+    font-size: 12px;
+    padding: 2px 6px;
+}
+
+.facility-image-item .drag-handle {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: move;
+    color: #666;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+#facility-images-container {
+    min-height: 50px;
+    border: 2px dashed #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+#facility-images-container:empty::before {
+    content: "No images added yet. Click 'Add Image' to get started.";
+    color: #999;
+    font-style: italic;
+}
+
+#facility-images-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#image-count {
+    color: #666;
+    font-size: 14px;
+}

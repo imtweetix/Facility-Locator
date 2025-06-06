@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Form for adding/editing a facility with all taxonomies
- * Optimized version with external JavaScript
+ * Form for adding/editing a facility with image gallery support
+ * Updated to include multiple image uploads
  */
 
 $is_edit = $facility !== null;
@@ -27,6 +27,7 @@ $facility_data = array(
     'website' => $is_edit ? $facility->website : '',
     'custom_pin_image' => $is_edit ? $facility->custom_pin_image : '',
     'description' => $is_edit ? $facility->description : '',
+    'images' => $is_edit ? (isset($facility->images) ? $facility->images : array()) : array(),
 );
 
 // Add taxonomy data
@@ -54,6 +55,7 @@ foreach ($all_taxonomies as $type => $taxonomy) {
         <div id="poststuff">
             <div id="post-body" class="metabox-holder columns-2">
                 <div id="post-body-content">
+                    <!-- Basic Information -->
                     <div class="postbox">
                         <h2 class="hndle">Basic Information</h2>
                         <div class="inside">
@@ -108,20 +110,6 @@ foreach ($all_taxonomies as $type => $taxonomy) {
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th scope="row"><label for="facility-custom-pin">Custom Map Pin</label></th>
-                                    <td>
-                                        <input type="hidden" id="facility-custom-pin" name="custom_pin_image" value="<?php echo esc_attr($facility_data['custom_pin_image']); ?>">
-                                        <div id="custom-pin-preview" style="margin-bottom: 10px;">
-                                            <?php if (!empty($facility_data['custom_pin_image'])) : ?>
-                                                <img src="<?php echo esc_url($facility_data['custom_pin_image']); ?>" style="max-width: 50px; max-height: 50px; display: block; margin-bottom: 5px;">
-                                            <?php endif; ?>
-                                        </div>
-                                        <button type="button" id="upload-pin-button" class="button">Choose Pin Image</button>
-                                        <button type="button" id="remove-pin-button" class="button" <?php echo empty($facility_data['custom_pin_image']) ? 'style="display:none;"' : ''; ?>>Remove Image</button>
-                                        <p class="description">Upload a PNG image to use as the map pin for this facility. If no image is uploaded, the default pin will be used.</p>
-                                    </td>
-                                </tr>
-                                <tr>
                                     <th scope="row"><label for="facility-description">Description</label></th>
                                     <td>
                                         <?php
@@ -135,6 +123,55 @@ foreach ($all_taxonomies as $type => $taxonomy) {
                                             )
                                         );
                                         ?>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Image Gallery -->
+                    <div class="postbox">
+                        <h2 class="hndle">Image Gallery</h2>
+                        <div class="inside">
+                            <p class="description">Add up to 5 images for this facility. Images will be displayed in a carousel on the frontend.</p>
+
+                            <div id="facility-images-container">
+                                <?php if (!empty($facility_data['images'])) : ?>
+                                    <?php foreach ($facility_data['images'] as $index => $image_url) : ?>
+                                        <div class="facility-image-item" data-index="<?php echo $index; ?>">
+                                            <img src="<?php echo esc_url($image_url); ?>" style="max-width: 150px; max-height: 100px; object-fit: cover;">
+                                            <input type="hidden" name="images[]" value="<?php echo esc_attr($image_url); ?>">
+                                            <button type="button" class="button remove-image">Remove</button>
+                                            <span class="drag-handle">⋮⋮</span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+
+                            <div id="facility-images-actions">
+                                <button type="button" id="add-facility-image" class="button">Add Image</button>
+                                <span id="image-count">(<?php echo count($facility_data['images']); ?>/5)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Pin Image -->
+                    <div class="postbox">
+                        <h2 class="hndle">Custom Map Pin</h2>
+                        <div class="inside">
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row"><label for="facility-custom-pin">Custom Map Pin</label></th>
+                                    <td>
+                                        <input type="hidden" id="facility-custom-pin" name="custom_pin_image" value="<?php echo esc_attr($facility_data['custom_pin_image']); ?>">
+                                        <div id="custom-pin-preview" style="margin-bottom: 10px;">
+                                            <?php if (!empty($facility_data['custom_pin_image'])) : ?>
+                                                <img src="<?php echo esc_url($facility_data['custom_pin_image']); ?>" style="max-width: 50px; max-height: 50px; display: block; margin-bottom: 5px;">
+                                            <?php endif; ?>
+                                        </div>
+                                        <button type="button" id="upload-pin-button" class="button">Choose Pin Image</button>
+                                        <button type="button" id="remove-pin-button" class="button" <?php echo empty($facility_data['custom_pin_image']) ? 'style="display:none;"' : ''; ?>>Remove Image</button>
+                                        <p class="description">Upload a PNG image to use as the map pin for this facility. If no image is uploaded, the default pin will be used.</p>
                                     </td>
                                 </tr>
                             </table>
@@ -196,3 +233,11 @@ foreach ($all_taxonomies as $type => $taxonomy) {
         </div>
     </form>
 </div>
+
+<script>
+    // Localize data for the external script
+    var facilityFormData = {
+        imageCount: <?php echo count($facility_data['images']); ?>,
+        maxImages: 5
+    };
+</script>

@@ -1,5 +1,6 @@
 /**
- * Enhanced Public-facing JavaScript for Recovery.com + Google Maps style interface
+ * Enhanced Frontend JavaScript for Recovery.com + Google Maps style interface
+ * Pure jQuery with modern ES6 features
  */
 (function ($) {
   'use strict';
@@ -161,7 +162,7 @@
    * Initialize mobile-specific event listeners
    */
   const initMobileEventListeners = ($container, id) => {
-    // Mobile filter trigger (will be added dynamically)
+    // Mobile filter trigger
     $(document).on('click', '.mobile-filter-trigger', function () {
       $('.mobile-filter-drawer').addClass('open');
     });
@@ -178,6 +179,39 @@
       const id = $container.attr('id');
       updateFilters($container, id);
     });
+
+    // Mobile sidebar swipe interactions for screens <= 768px
+    if ($(window).width() <= 768) {
+      let startY = 0;
+      let currentY = 0;
+      let isDragging = false;
+
+      $(document).on('touchstart', '.sidebar-header', (e) => {
+        startY = e.originalEvent.touches[0].clientY;
+        isDragging = true;
+      });
+
+      $(document).on('touchmove', '.sidebar-header', (e) => {
+        if (!isDragging) return;
+        currentY = e.originalEvent.touches[0].clientY;
+        const diff = currentY - startY;
+
+        if (diff < -50) {
+          $('.facility-locator-sidebar').addClass('open');
+        } else if (diff > 50) {
+          $('.facility-locator-sidebar').removeClass('open');
+        }
+      });
+
+      $(document).on('touchend', '.sidebar-header', () => {
+        isDragging = false;
+      });
+
+      // Tap to toggle sidebar
+      $(document).on('click', '.sidebar-header', () => {
+        $('.facility-locator-sidebar').toggleClass('open');
+      });
+    }
   };
 
   /**
@@ -256,26 +290,24 @@
   const buildRadioField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
-    if (column.options) {
-      if (Array.isArray(column.options)) {
-        column.options.forEach((option) => {
-          const optionId = `${fieldId}_${option.value}`;
-          const $option = $('<div>').addClass('facility-locator-field-option');
+    if (column.options && Array.isArray(column.options)) {
+      column.options.forEach((option) => {
+        const optionId = `${fieldId}_${option.value}`;
+        const $option = $('<div>').addClass('facility-locator-field-option');
 
-          $option.append(
-            $('<input>').attr({
-              type: 'radio',
-              id: optionId,
-              name: fieldId,
-              value: option.value,
-            })
-          );
+        $option.append(
+          $('<input>').attr({
+            type: 'radio',
+            id: optionId,
+            name: fieldId,
+            value: option.value,
+          })
+        );
 
-          $option.append($('<label>').attr('for', optionId).text(option.label));
+        $option.append($('<label>').attr('for', optionId).text(option.label));
 
-          $container.append($option);
-        });
-      }
+        $container.append($option);
+      });
     }
 
     return $container;
@@ -287,26 +319,24 @@
   const buildCheckboxField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
-    if (column.options) {
-      if (Array.isArray(column.options)) {
-        column.options.forEach((option) => {
-          const optionId = `${fieldId}_${option.value}`;
-          const $option = $('<div>').addClass('facility-locator-field-option');
+    if (column.options && Array.isArray(column.options)) {
+      column.options.forEach((option) => {
+        const optionId = `${fieldId}_${option.value}`;
+        const $option = $('<div>').addClass('facility-locator-field-option');
 
-          $option.append(
-            $('<input>').attr({
-              type: 'checkbox',
-              id: optionId,
-              name: `${fieldId}[]`,
-              value: option.value,
-            })
-          );
+        $option.append(
+          $('<input>').attr({
+            type: 'checkbox',
+            id: optionId,
+            name: `${fieldId}[]`,
+            value: option.value,
+          })
+        );
 
-          $option.append($('<label>').attr('for', optionId).text(option.label));
+        $option.append($('<label>').attr('for', optionId).text(option.label));
 
-          $container.append($option);
-        });
-      }
+        $container.append($option);
+      });
     }
 
     return $container;
@@ -329,12 +359,10 @@
         .text(`Select ${column.header || 'Option'}`)
     );
 
-    if (column.options) {
-      if (Array.isArray(column.options)) {
-        column.options.forEach((option) => {
-          $select.append($('<option>').val(option.value).text(option.label));
-        });
-      }
+    if (column.options && Array.isArray(column.options)) {
+      column.options.forEach((option) => {
+        $select.append($('<option>').val(option.value).text(option.label));
+      });
     }
 
     return $select;
@@ -464,6 +492,10 @@
    * Fetch facilities via AJAX
    */
   const fetchFacilities = ($container, id) => {
+    // Show loading state
+    const $cardsContainer = $container.find('.facility-cards-container');
+    $cardsContainer.addClass('loading').html('<div class="loading-spinner"></div>');
+
     $.ajax({
       url: facilityLocator.ajaxUrl,
       type: 'POST',
@@ -473,6 +505,8 @@
         form_data: activeFilters[id],
       },
       success: (response) => {
+        $cardsContainer.removeClass('loading');
+
         if (response.success) {
           facilitiesData[id] = response.data.facilities;
 
@@ -481,16 +515,20 @@
           renderMap($container, id, response.data.facilities);
         } else {
           console.error('Error fetching facilities:', response.data);
+          $cardsContainer.html('<div class="no-results">Error loading facilities. Please try again.</div>');
         }
       },
       error: (xhr, status, error) => {
         console.error('AJAX error:', error);
+        $cardsContainer
+          .removeClass('loading')
+          .html('<div class="no-results">Error loading facilities. Please try again.</div>');
       },
     });
   };
 
   /**
-   * Render filter bar
+   * Render filter bar with Recovery.com styling
    */
   const renderFilterBar = ($container, id, filters) => {
     const $filterItems = $container.find('.filter-items');
@@ -551,7 +589,26 @@
    * Render mobile filter drawer
    */
   const renderMobileFilterDrawer = ($container, filters) => {
-    const $mobileContent = $container.find('.mobile-filter-content');
+    let $drawer = $container.find('.mobile-filter-drawer');
+
+    if ($drawer.length === 0) {
+      $drawer = $(`
+        <div class="mobile-filter-drawer">
+          <div class="mobile-filter-header">
+            <h3>Filters</h3>
+            <button class="mobile-filter-close">&times;</button>
+          </div>
+          <div class="mobile-filter-content"></div>
+          <div class="mobile-filter-footer">
+            <button class="clear-all-filters">Clear All</button>
+            <button class="apply-mobile-filters">Apply Filters</button>
+          </div>
+        </div>
+      `);
+      $container.append($drawer);
+    }
+
+    const $mobileContent = $drawer.find('.mobile-filter-content');
     $mobileContent.empty();
 
     Object.entries(filters).forEach(([taxonomyType, taxonomyItems]) => {
@@ -567,7 +624,8 @@
                   (item) => `
                 <div class="filter-option">
                   <input type="checkbox" id="mobile_filter_${taxonomyType}_${item.id}" 
-                         value="${item.id}" data-taxonomy="${taxonomyType}">
+                         value="${item.id}" data-taxonomy="${taxonomyType}"
+                         ${isFilterSelected(id, taxonomyType, item.id) ? 'checked' : ''}>
                   <label for="mobile_filter_${taxonomyType}_${item.id}">${item.name}</label>
                 </div>
               `
@@ -583,7 +641,7 @@
   };
 
   /**
-   * Render facility cards
+   * Render facility cards with Recovery.com styling
    */
   const renderFacilityCards = ($container, id, facilities) => {
     const $cardsContainer = $container.find('.facility-cards-container');
@@ -604,7 +662,7 @@
   };
 
   /**
-   * Create a facility card
+   * Create a facility card with image gallery support
    */
   const createFacilityCard = (facility) => {
     const images = facility.images || [];
@@ -643,7 +701,7 @@
   };
 
   /**
-   * Create image carousel
+   * Create image carousel with 300x206 aspect ratio
    */
   const createImageCarousel = (images, maxImages) => {
     const limitedImages = images.slice(0, maxImages);
@@ -747,7 +805,7 @@
   };
 
   /**
-   * Render Google Map
+   * Render Google Map with enhanced pin functionality
    */
   const renderMap = ($container, id, facilities) => {
     const $mapContainer = $container.find(`#${id}-map`);
@@ -781,18 +839,34 @@
     }
 
     const bounds = new google.maps.LatLngBounds();
+    const defaultPinImage = facilityLocator.settings?.defaultPinImage;
 
-    // Create markers
+    // Create markers with custom pins
     facilities.forEach((facility, index) => {
       const position = {
         lat: parseFloat(facility.lat),
         lng: parseFloat(facility.lng),
       };
 
-      const marker = new google.maps.Marker({
-        position,
-        title: facility.name,
-        icon: {
+      // Determine pin image
+      let pinIcon = null;
+      if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
+        // Use facility's custom pin
+        pinIcon = {
+          url: facility.custom_pin_image,
+          scaledSize: new google.maps.Size(32, 40),
+          anchor: new google.maps.Point(16, 40),
+        };
+      } else if (defaultPinImage && defaultPinImage.trim() !== '') {
+        // Use default custom pin
+        pinIcon = {
+          url: defaultPinImage,
+          scaledSize: new google.maps.Size(32, 40),
+          anchor: new google.maps.Point(16, 40),
+        };
+      } else {
+        // Use default Google Maps pin with custom color
+        pinIcon = {
           url:
             'data:image/svg+xml;charset=UTF-8,' +
             encodeURIComponent(`
@@ -803,7 +877,13 @@
           `),
           scaledSize: new google.maps.Size(32, 40),
           anchor: new google.maps.Point(16, 40),
-        },
+        };
+      }
+
+      const marker = new google.maps.Marker({
+        position,
+        title: facility.name,
+        icon: pinIcon,
       });
 
       // Create info window
@@ -855,12 +935,19 @@
       markers[id].forEach((marker) => marker.setMap(maps[id]));
     }
 
-    // Fit map to bounds
+    // Fit map to bounds with auto-zoom
     if (facilities.length === 1) {
       maps[id].setCenter(bounds.getCenter());
       maps[id].setZoom(15);
     } else if (facilities.length > 1) {
       maps[id].fitBounds(bounds);
+
+      // Ensure minimum zoom level
+      google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
+        if (maps[id].getZoom() > 15) {
+          maps[id].setZoom(15);
+        }
+      });
     }
   };
 
@@ -931,7 +1018,7 @@
   };
 
   /**
-   * Show facility details
+   * Show facility details with image gallery support
    */
   const showFacilityDetails = ($container, facilityId) => {
     const id = $container.attr('id');
@@ -940,10 +1027,22 @@
 
     currentFacilityId = facilityId;
 
-    const $modal = $container.find('.facility-detail-modal');
+    let $modal = $container.find('.facility-detail-modal');
+    if ($modal.length === 0) {
+      $modal = $(`
+        <div class="facility-detail-modal">
+          <div class="facility-detail-content">
+            <button class="facility-detail-close">&times;</button>
+            <div class="facility-detail-body"></div>
+          </div>
+        </div>
+      `);
+      $container.append($modal);
+    }
+
     const $body = $modal.find('.facility-detail-body');
 
-    // Create detailed content
+    // Create detailed content with image gallery
     const detailContent = createDetailedFacilityContent(facility);
     $body.html(detailContent);
 
@@ -952,7 +1051,7 @@
   };
 
   /**
-   * Create detailed facility content
+   * Create detailed facility content with image gallery
    */
   const createDetailedFacilityContent = (facility) => {
     const images = facility.images || [];
@@ -1041,21 +1140,27 @@
   };
 
   /**
-   * Update filters
+   * Update filters with AND logic
    */
   const updateFilters = ($container, id) => {
     // Collect selected filters
     const filters = {};
 
-    $container.find('.filter-option input[type="checkbox"]:checked').each(function () {
-      const taxonomyType = $(this).data('taxonomy');
-      const value = $(this).val();
+    $container
+      .find(
+        '.filter-option input[type="checkbox"]:checked, .mobile-filter-drawer .filter-option input[type="checkbox"]:checked'
+      )
+      .each(function () {
+        const taxonomyType = $(this).data('taxonomy');
+        const value = $(this).val();
 
-      if (!filters[taxonomyType]) {
-        filters[taxonomyType] = [];
-      }
-      filters[taxonomyType].push(value);
-    });
+        if (!filters[taxonomyType]) {
+          filters[taxonomyType] = [];
+        }
+        if (filters[taxonomyType].indexOf(value) === -1) {
+          filters[taxonomyType].push(value);
+        }
+      });
 
     activeFilters[id] = filters;
 
@@ -1106,7 +1211,9 @@
    */
   const clearAllFilters = ($container, id) => {
     activeFilters[id] = {};
-    $container.find('.filter-option input[type="checkbox"]').prop('checked', false);
+    $container
+      .find('.filter-option input[type="checkbox"], .mobile-filter-drawer .filter-option input[type="checkbox"]')
+      .prop('checked', false);
     updateFilterButtonStates($container, id);
     fetchFacilities($container, id);
   };

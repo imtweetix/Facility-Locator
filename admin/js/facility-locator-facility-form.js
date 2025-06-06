@@ -54,7 +54,7 @@
     console.log('Facility Map: Initializing...');
 
     try {
-      // Cache DOM elements using jQuery
+      // Cache DOM elements
       cacheDOMElements();
 
       if (!cache.elements.$mapElement.length) {
@@ -89,7 +89,7 @@
   };
 
   /**
-   * Cache DOM elements for performance using jQuery
+   * Cache DOM elements for performance
    */
   const cacheDOMElements = () => {
     cache.elements.$mapElement = $('#facility-map');
@@ -101,7 +101,7 @@
   };
 
   /**
-   * Get initial coordinates with validation using jQuery
+   * Get initial coordinates with validation
    */
   const getInitialCoordinates = () => {
     const lat = parseFloat(cache.elements.$latInput.val()) || 40.7128;
@@ -156,13 +156,13 @@
   };
 
   /**
-   * Handle marker drag with optimized updates using jQuery
+   * Handle marker drag with optimized updates
    */
   const handleMarkerDrag = (event) => {
     const lat = event.latLng.lat();
     const lng = event.latLng.lng();
 
-    // Update coordinate fields using jQuery
+    // Update coordinate fields
     updateCoordinateFields(lat, lng);
 
     // Throttled reverse geocoding
@@ -183,7 +183,7 @@
   }, 500);
 
   /**
-   * Update coordinate fields efficiently using jQuery
+   * Update coordinate fields efficiently
    */
   const updateCoordinateFields = (lat, lng) => {
     const fields = [
@@ -255,9 +255,41 @@
   };
 
   /**
-   * Manual coordinate update with validation using jQuery
+   * Manual coordinate update with validation
    */
   window.updateCoordinatesFromManual = () => {
+    if (!cache.elements.$manualLatInput || !cache.elements.$manualLngInput) {
+      // If jQuery elements aren't cached, try direct access
+      const manualLat = document.getElementById('manual-lat');
+      const manualLng = document.getElementById('manual-lng');
+      const facilityLat = document.getElementById('facility-lat');
+      const facilityLng = document.getElementById('facility-lng');
+
+      if (manualLat && manualLng && facilityLat && facilityLng) {
+        const lat = parseFloat(manualLat.value);
+        const lng = parseFloat(manualLng.value);
+
+        if (!isValidCoordinate(lat, lng)) {
+          console.warn('Facility Map: Invalid manual coordinates');
+          return;
+        }
+
+        // Update hidden fields
+        facilityLat.value = lat;
+        facilityLng.value = lng;
+
+        // Update map if available
+        if (cache.map && cache.marker) {
+          const newPos = { lat, lng };
+          cache.map.setCenter(newPos);
+          cache.marker.setPosition(newPos);
+        }
+
+        return;
+      }
+      return;
+    }
+
     const lat = parseFloat(cache.elements.$manualLatInput.val());
     const lng = parseFloat(cache.elements.$manualLngInput.val());
 
@@ -279,7 +311,7 @@
   };
 
   /**
-   * Handle map errors with fallback using jQuery
+   * Handle map errors with fallback
    */
   const handleMapError = (error) => {
     const $mapElement = cache.elements.$mapElement;
@@ -313,10 +345,26 @@
    * Initialize with fallback and retry logic
    */
   const initializeWithFallback = () => {
+    // Check if we have the required elements first
+    const mapElement = document.getElementById('facility-map');
+    const addressInput = document.getElementById('facility-address');
+
+    if (!mapElement) {
+      console.log('Facility Map: Map element not found, skipping initialization');
+      return;
+    }
+
+    // Check if API key is available
+    if (!facilityLocator.hasApiKey) {
+      console.log('Facility Map: No API key available');
+      return;
+    }
+
     if (window.google && window.google.maps) {
       window.initFacilityMap();
     } else if (cache.retryCount < cache.maxRetries) {
       cache.retryCount++;
+      console.log(`Facility Map: Retry ${cache.retryCount}/${cache.maxRetries}`);
       setTimeout(initializeWithFallback, 1000);
     } else {
       console.error('Facility Map: Google Maps failed to load after retries');
@@ -325,18 +373,30 @@
   };
 
   /**
-   * DOM ready initialization using jQuery
+   * DOM ready initialization
    */
   $(() => {
-    // Initialize manual coordinate fields from hidden fields using jQuery
-    const lat = $('#facility-lat').val();
-    const lng = $('#facility-lng').val();
+    // Initialize manual coordinate fields from hidden fields using vanilla JS
+    const facilityLat = document.getElementById('facility-lat');
+    const facilityLng = document.getElementById('facility-lng');
+    const manualLat = document.getElementById('manual-lat');
+    const manualLng = document.getElementById('manual-lng');
 
-    if (lat) {
-      $('#manual-lat').val(lat);
+    if (facilityLat && facilityLat.value && manualLat) {
+      manualLat.value = facilityLat.value;
     }
-    if (lng) {
-      $('#manual-lng').val(lng);
+    if (facilityLng && facilityLng.value && manualLng) {
+      manualLng.value = facilityLng.value;
+    }
+
+    // Add event listeners for manual coordinate inputs
+    if (manualLat) {
+      manualLat.addEventListener('input', window.updateCoordinatesFromManual);
+      manualLat.addEventListener('change', window.updateCoordinatesFromManual);
+    }
+    if (manualLng) {
+      manualLng.addEventListener('input', window.updateCoordinatesFromManual);
+      manualLng.addEventListener('change', window.updateCoordinatesFromManual);
     }
 
     // Start initialization with delay for better performance

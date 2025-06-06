@@ -54,15 +54,22 @@ class Facility_Locator_Public
             FACILITY_LOCATOR_URL . 'public/js/facility-locator-public.js',
             array('jquery'),
             $this->version,
-            false
+            true // Load in footer
         );
 
         // Google Maps API with performance optimization
         $api_key = get_option('facility_locator_google_maps_api_key', '');
         if (!empty($api_key)) {
+            // Enqueue Google Maps with proper parameters
+            $google_maps_url = add_query_arg(array(
+                'key' => $api_key,
+                'libraries' => 'places',
+                'v' => 'weekly'
+            ), 'https://maps.googleapis.com/maps/api/js');
+
             wp_enqueue_script(
-                'google-maps',
-                "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=places",
+                'google-maps-frontend',
+                $google_maps_url,
                 array(),
                 null,
                 true
@@ -72,7 +79,7 @@ class Facility_Locator_Public
             wp_enqueue_script(
                 'marker-clusterer',
                 'https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js',
-                array('google-maps'),
+                array('google-maps-frontend'),
                 null,
                 true
             );
@@ -84,13 +91,15 @@ class Facility_Locator_Public
         // Get cached settings including default pin image
         $settings = $this->get_cached_settings();
 
-        // Localize script with enhanced data including pin settings
+        // Enhanced localization with proper API key handling
         wp_localize_script($this->plugin_name, 'facilityLocator', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('facility_locator_public_nonce'),
             'settings' => $settings,
             'formSteps' => $this->get_cached_form_steps(),
             'availableTaxonomies' => $available_taxonomies,
+            'hasApiKey' => !empty($api_key),
+            'googleMapsApiKey' => !empty($api_key) ? $api_key : '',
         ));
     }
 

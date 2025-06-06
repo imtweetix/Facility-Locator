@@ -8,12 +8,7 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   position: relative;
   width: 100%;
-  height: 600px;
-  min-height: 600px;
   overflow: hidden;
-  background: #f8f9fa;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* CTA Button - Initial State */
@@ -22,7 +17,9 @@
   justify-content: center;
   align-items: center;
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .facility-locator-cta-button {
@@ -35,14 +32,14 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  background: var(--cta-color, #007bff);
+  backdrop-filter: none;
 }
 
 .facility-locator-cta-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-  background: rgba(255, 255, 255, 0.2);
+  opacity: 0.9;
 }
 
 /* Main Interface Layout */
@@ -50,8 +47,13 @@
   width: 100%;
   height: 100%;
   position: relative;
-  display: flex;
+  display: none;
   flex-direction: column;
+}
+
+/* When main interface is shown */
+.facility-locator-main-interface.active {
+  display: flex;
 }
 
 /* Sticky Filter Bar - Recovery.com Style */
@@ -760,6 +762,7 @@
   max-width: 800px;
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  min-height: 200px;
 }
 
 .facility-locator-popup-close {
@@ -779,6 +782,7 @@
   text-align: center;
   border-radius: 50%;
   transition: all 0.2s ease;
+  z-index: 1;
 }
 
 .facility-locator-popup-close:hover {
@@ -788,6 +792,22 @@
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+  .facility-locator-popup-content {
+    width: 95%;
+    margin: 20px auto;
+    padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .facility-locator-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
   .facility-locator-container {
     height: 100vh;
     border-radius: 0;
@@ -957,6 +977,10 @@
 }
 
 /* Form Step Styles */
+.facility-locator-steps {
+  min-height: 200px;
+}
+
 .facility-locator-step {
   display: none;
   animation: fadeIn 0.3s ease;
@@ -1032,6 +1056,20 @@
   background: white;
   font-size: 14px;
   color: #374151;
+}
+
+/* Form container styling */
+.facility-locator-form {
+  padding: 10px 0;
+  min-height: 150px;
+}
+
+.facility-locator-form h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #333;
+  text-align: center;
 }
 
 .facility-locator-form-navigation {
@@ -1186,11 +1224,6 @@
 
 /* Dark mode support (if needed) */
 @media (prefers-color-scheme: dark) {
-  .facility-locator-container {
-    background: #1f2937;
-    color: #f9fafb;
-  }
-
   .facility-locator-sidebar,
   .facility-card,
   .facility-detail-modal {

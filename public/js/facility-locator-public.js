@@ -3,7 +3,7 @@
  * Updated with image gallery support and improved pin functionality
  */
 (function ($) {
-  'use strict';
+  ('use strict');
 
   // Store map instances and data
   const maps = {};
@@ -14,23 +14,276 @@
   const activeFilters = {};
   let currentFacilityId = null;
 
+  // Google Maps initialization checker
+  let mapInitRetries = 0;
+  const maxMapInitRetries = 10;
+
+  /**
+   * Check if Google Maps is loaded and ready
+   */
+  const checkGoogleMapsReady = () => {
+    return new Promise((resolve, reject) => {
+      if (window.google && window.google.maps) {
+        resolve(true);
+        return;
+      }
+
+      mapInitRetries++;
+      if (mapInitRetries >= maxMapInitRetries) {
+        reject(new Error('Google Maps failed to load after maximum retries'));
+        return;
+      }
+
+      setTimeout(() => {
+        checkGoogleMapsReady().then(resolve).catch(reject);
+      }, 500);
+    });
+  };
+
+  /**
+   * Enhanced renderMap function with proper error handling
+   * Replace the existing renderMap function with this version
+   */
+  const renderMap = async ($container, id, facilities) => {
+    const $mapContainer = $container.find(`#${id}-map`);
+
+    // Check if API key is available
+    if (!facilityLocator.hasApiKey) {
+      $mapContainer.html(`
+      <div style="padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+        <h3 style="color: #6b7280; margin: 0 0 8px 0;">Google Maps API Key Required</h3>
+        <p style="color: #9ca3af; margin: 0;">Please configure your Google Maps API key to view the map.</p>
+      </div>
+    `);
+      return;
+    }
+
+    try {
+      // Wait for Google Maps to be ready
+      await checkGoogleMapsReady();
+
+      if (!maps[id]) {
+        maps[id] = new google.maps.Map($mapContainer[0], {
+          zoom: parseInt(facilityLocator.settings?.mapZoom) || 10,
+          center: { lat: 40.7128, lng: -74.006 },
+          mapTypeControl: true,
+          scrollwheel: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+          styles: [
+            {
+              featureType: 'poi',
+              elementType: 'labels',
+              stylers: [{ visibility: 'off' }],
+            },
+          ],
+        });
+
+        markers[id] = [];
+        infoWindows[id] = [];
+      }
+
+      // Clear existing markers and clusterer
+      clearMarkers(id);
+
+      if (!facilities || facilities.length === 0) {
+        return;
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+      const defaultPinImage = facilityLocator.settings?.defaultPinImage;
+
+      // Create markers with custom pins
+      facilities.forEach((facility, index) => {
+        const position = {
+          lat: parseFloat(facility.lat),
+          lng: parseFloat(facility.lng),
+        };
+
+        // Determine pin image
+        let pinIcon = null;
+        if (facility.custom_pin_image && facility.custom_pin_image.trim() !== '') {
+          // Use facility's custom pin
+          pinIcon = {
+            url: facility.custom_pin_image,
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          };
+        } else if (defaultPinImage && defaultPinImage.trim() !== '') {
+          // Use default custom pin
+          pinIcon = {
+            url: defaultPinImage,
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          };
+        } else {
+          // Use default Google Maps pin with custom color
+          pinIcon = {
+            url:
+              'data:image/svg+xml;charset=UTF-8,' +
+              encodeURIComponent(`
+            <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 0C7.2 0 0 7.2 0 16c0 16 16 24 16 24s16-8 16-24c0-8.8-7.2-16-16-16z" fill="#3b82f6"/>
+              <circle cx="16" cy="16" r="8" fill="white"/>
+            </svg>
+          `),
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          };
+        }
+
+        const marker = new google.maps.Marker({
+          position,
+          title: facility.name,
+          icon: pinIcon,
+        });
+
+        // Create info window
+        const infoWindow = new google.maps.InfoWindow({
+          content: `
+          <div style="padding: 8px; min-width: 200px;">
+            <h4 style="margin: 0 0 8px 0; font-size: 16px;">${facility.name}</h4>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${facility.address}</p>
+            ${
+              facility.phone
+                ? `<p style="margin: 0; font-size: 14px;"><strong>Phone:</strong> ${facility.phone}</p>`
+                : ''
+            }
+          </div>
+        `,
+        });
+
+        // Add click listener
+        marker.addListener('click', () => {
+          // Close all info windows
+          infoWindows[id].forEach((window) => window.close());
+
+          // Open this info window
+          infoWindow.open(maps[id], marker);
+
+          // Highlight facility card and show details
+          highlightFacilityCard(facility.id);
+          showFacilityDetails($container, facility.id);
+        });
+
+        markers[id].push(marker);
+        infoWindows[id].push(infoWindow);
+        bounds.extend(position);
+      });
+
+      // Add marker clustering if available
+      if (window.MarkerClusterer && window.markerClusterer) {
+        if (markerClusterer[id]) {
+          markerClusterer[id].clearMarkers();
+        }
+
+        markerClusterer[id] = new markerClusterer.MarkerClusterer({
+          map: maps[id],
+          markers: markers[id],
+        });
+      } else {
+        // Set markers on map if no clustering
+        markers[id].forEach((marker) => marker.setMap(maps[id]));
+      }
+
+      // Fit map to bounds with auto-zoom
+      if (facilities.length === 1) {
+        maps[id].setCenter(bounds.getCenter());
+        maps[id].setZoom(15);
+      } else if (facilities.length > 1) {
+        maps[id].fitBounds(bounds);
+
+        // Ensure minimum zoom level
+        google.maps.event.addListenerOnce(maps[id], 'bounds_changed', function () {
+          if (maps[id].getZoom() > 15) {
+            maps[id].setZoom(15);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Google Maps error:', error);
+      $mapContainer.html(`
+      <div style="padding: 40px; text-align: center; background: #fee2e2; border-radius: 8px;">
+        <h3 style="color: #dc2626; margin: 0 0 8px 0;">Map Loading Error</h3>
+        <p style="color: #991b1b; margin: 0;">Unable to load Google Maps. Please check your API key and internet connection.</p>
+      </div>
+    `);
+    }
+  };
+
+  /**
+   * Validate template elements
+   */
+  const validateTemplateElements = ($container, id) => {
+    const requiredElements = [
+      '.facility-locator-cta-button',
+      '.facility-locator-popup',
+      '.facility-locator-popup-close',
+      '.facility-locator-steps',
+      '.facility-locator-form-navigation',
+      '.facility-locator-main-interface',
+    ];
+
+    const missingElements = [];
+
+    requiredElements.forEach((selector) => {
+      if ($container.find(selector).length === 0) {
+        missingElements.push(selector);
+      }
+    });
+
+    if (missingElements.length > 0) {
+      console.error('Missing template elements in container', id, ':', missingElements);
+      console.error('Please check that the template file is properly loaded.');
+      return false;
+    }
+
+    console.log('All template elements found for container:', id);
+    return true;
+  };
+
   /**
    * Initialize the plugin
    */
   const init = () => {
+    console.log('Facility Locator: Initializing plugin');
+
+    // Check if facilityLocator global is available
+    if (typeof facilityLocator === 'undefined') {
+      console.error('Facility Locator: facilityLocator global not found. Check script localization.');
+      return;
+    }
+
     $('.facility-locator-container').each(function () {
       const $container = $(this);
       const id = $container.attr('id');
 
+      console.log('Initializing container:', id);
+
+      // Validate template elements
+      if (!validateTemplateElements($container, id)) {
+        console.error('Template validation failed for container:', id);
+        return; // Skip this container
+      }
+
+      // Initialize data storage
       facilitiesData[id] = [];
       activeFilters[id] = {};
 
-      // Set up event listeners
+      // Set up event listeners first
       initEventListeners($container, id);
 
-      // Build form steps for initial popup
+      // Build form steps after event listeners
       buildFormSteps($container, id);
+
+      console.log('Container initialized successfully:', id);
     });
+
+    if ($('.facility-locator-container').length === 0) {
+      console.warn('Facility Locator: No containers found on page');
+    } else {
+      console.log('Facility Locator: All containers initialized');
+    }
   };
 
   /**
@@ -46,35 +299,55 @@
     const $submitBtn = $popup.find('.facility-locator-submit-btn');
     const $skipLink = $popup.find('.facility-locator-skip-link');
 
-    // Initial popup interactions
+    console.log('Initializing event listeners for container:', id);
+    console.log('CTA Button found:', $ctaButton.length);
+    console.log('Popup found:', $popup.length);
+
+    // Initial popup interactions - ALWAYS show popup first
     $ctaButton.on('click', (e) => {
       e.preventDefault();
-      $popup.fadeIn(300);
+      console.log('CTA button clicked, showing popup');
+
+      // Ensure popup is visible
+      $popup.css('display', 'block').fadeIn(300);
       $('body').css('overflow', 'hidden');
     });
 
     $closeButton.on('click', () => {
+      console.log('Popup close button clicked');
       $popup.fadeOut(300);
       $('body').css('overflow', 'auto');
     });
 
+    // Close popup when clicking outside
     $popup.on('click', (e) => {
       if ($(e.target).hasClass('facility-locator-popup')) {
+        console.log('Clicked outside popup, closing');
         $popup.fadeOut(300);
         $('body').css('overflow', 'auto');
       }
     });
 
     // Form navigation
-    $nextBtn.on('click', () => navigateStep($container, 'next'));
-    $prevBtn.on('click', () => navigateStep($container, 'prev'));
+    $nextBtn.on('click', () => {
+      console.log('Next button clicked');
+      navigateStep($container, 'next');
+    });
+
+    $prevBtn.on('click', () => {
+      console.log('Previous button clicked');
+      navigateStep($container, 'prev');
+    });
+
     $form.on('submit', (e) => {
       e.preventDefault();
+      console.log('Form submitted');
       submitForm($container, id);
     });
 
     $skipLink.on('click', (e) => {
       e.preventDefault();
+      console.log('Skip link clicked');
       showAllFacilities($container, id);
     });
 
@@ -220,22 +493,44 @@
   const buildFormSteps = ($container, id) => {
     const formSteps = facilityLocator.formSteps;
     const $stepsContainer = $container.find('.facility-locator-steps');
+    const $popup = $container.find('.facility-locator-popup');
+    const $ctaButton = $container.find('.facility-locator-cta-button');
+
+    // Clear any existing steps
+    $stepsContainer.empty();
 
     if (!formSteps || formSteps.length === 0) {
-      const $ctaButton = $container.find('.facility-locator-cta-button');
-      $ctaButton.off('click').on('click', (e) => {
-        e.preventDefault();
-        showAllFacilities($container, id);
-      });
+      // No form steps configured - create a simple "get started" step
+      const $simpleStep = $('<div>').addClass('facility-locator-step active').attr('data-step', 0);
+      $simpleStep.append(`
+        <h2>Find Facilities Near You</h2>
+        <p style="margin: 20px 0; color: #6b7280; font-size: 16px; text-align: center;">
+          Browse all available facilities or use our search filters to find exactly what you're looking for.
+        </p>
+      `);
+      $stepsContainer.append($simpleStep);
+
+      // Update the navigation to skip directly to facilities
+      const $submitBtn = $container.find('.facility-locator-submit-btn');
+      const $nextBtn = $container.find('.facility-locator-next-btn');
+
+      $nextBtn.hide();
+      $submitBtn.show().text('Browse Facilities');
+
+      // Keep the popup functionality intact
+      console.log('Form steps: No steps configured, showing simple popup');
       return;
     }
 
+    // Build form steps normally
     formSteps.forEach((step, index) => {
       buildStep($stepsContainer, step, index);
     });
 
     $container.find('.facility-locator-step').first().addClass('active');
     updateNavButtons($container);
+
+    console.log('Form steps: Built', formSteps.length, 'steps');
   };
 
   /**
@@ -444,6 +739,8 @@
    * Submit form and show main interface
    */
   const submitForm = ($container, id) => {
+    console.log('Submitting form for container:', id);
+
     const $form = $container.find('form');
     const formData = $form.serializeArray();
     const data = {};
@@ -460,29 +757,51 @@
       }
     });
 
-    $container.find('.facility-locator-popup').fadeOut(300);
+    console.log('Form data collected:', data);
+
+    // Close popup and show main interface
+    const $popup = $container.find('.facility-locator-popup');
+    $popup.fadeOut(300, () => {
+      showMainInterface($container, id, data);
+    });
+
     $('body').css('overflow', 'auto');
-    showMainInterface($container, id, data);
   };
 
   /**
    * Show all facilities without filtering
    */
   const showAllFacilities = ($container, id) => {
-    $container.find('.facility-locator-popup').fadeOut(300);
+    console.log('Showing all facilities for container:', id);
+
+    // Close popup with fade effect
+    const $popup = $container.find('.facility-locator-popup');
+    $popup.fadeOut(300, () => {
+      // Show main interface after popup closes
+      showMainInterface($container, id, {});
+    });
+
     $('body').css('overflow', 'auto');
-    showMainInterface($container, id, {});
   };
 
   /**
    * Show main interface
    */
   const showMainInterface = ($container, id, formData = {}) => {
-    $container.find('.facility-locator-cta').hide();
-    $container.find('.facility-locator-main-interface').show();
+    console.log('Showing main interface for container:', id);
+
+    // Hide CTA section
+    const $cta = $container.find('.facility-locator-cta');
+    $cta.fadeOut(300);
+
+    // Show main interface
+    const $mainInterface = $container.find('.facility-locator-main-interface');
+    $mainInterface.addClass('active').fadeIn(300);
 
     // Store initial form data as filters
     activeFilters[id] = { ...formData };
+
+    console.log('Active filters set:', activeFilters[id]);
 
     // Fetch facilities and render interface
     fetchFacilities($container, id);
@@ -582,29 +901,29 @@
     });
 
     // Render mobile filter drawer
-    renderMobileFilterDrawer($container, filters);
+    renderMobileFilterDrawer($container, id, filters);
   };
 
   /**
    * Render mobile filter drawer
    */
-  const renderMobileFilterDrawer = ($container, filters) => {
+  const renderMobileFilterDrawer = ($container, id, filters) => {
     let $drawer = $container.find('.mobile-filter-drawer');
 
     if ($drawer.length === 0) {
       $drawer = $(`
-        <div class="mobile-filter-drawer">
-          <div class="mobile-filter-header">
-            <h3>Filters</h3>
-            <button class="mobile-filter-close">&times;</button>
-          </div>
-          <div class="mobile-filter-content"></div>
-          <div class="mobile-filter-footer">
-            <button class="clear-all-filters">Clear All</button>
-            <button class="apply-mobile-filters">Apply Filters</button>
-          </div>
+      <div class="mobile-filter-drawer">
+        <div class="mobile-filter-header">
+          <h3>Filters</h3>
+          <button class="mobile-filter-close">&times;</button>
         </div>
-      `);
+        <div class="mobile-filter-content"></div>
+        <div class="mobile-filter-footer">
+          <button class="clear-all-filters">Clear All</button>
+          <button class="apply-mobile-filters">Apply Filters</button>
+        </div>
+      </div>
+    `);
       $container.append($drawer);
     }
 
@@ -616,24 +935,24 @@
         const taxonomyDisplayName = facilityLocator.availableTaxonomies[taxonomyType]?.label || taxonomyType;
 
         const $section = $(`
-          <div class="mobile-filter-section">
-            <h4>${taxonomyDisplayName}</h4>
-            <div class="mobile-filter-options">
-              ${taxonomyItems
-                .map(
-                  (item) => `
-                <div class="filter-option">
-                  <input type="checkbox" id="mobile_filter_${taxonomyType}_${item.id}" 
-                         value="${item.id}" data-taxonomy="${taxonomyType}"
-                         ${isFilterSelected(id, taxonomyType, item.id) ? 'checked' : ''}>
-                  <label for="mobile_filter_${taxonomyType}_${item.id}">${item.name}</label>
-                </div>
-              `
-                )
-                .join('')}
-            </div>
+        <div class="mobile-filter-section">
+          <h4>${taxonomyDisplayName}</h4>
+          <div class="mobile-filter-options">
+            ${taxonomyItems
+              .map(
+                (item) => `
+              <div class="filter-option">
+                <input type="checkbox" id="mobile_filter_${taxonomyType}_${item.id}" 
+                       value="${item.id}" data-taxonomy="${taxonomyType}"
+                       ${isFilterSelected(id, taxonomyType, item.id) ? 'checked' : ''}>
+                <label for="mobile_filter_${taxonomyType}_${item.id}">${item.name}</label>
+              </div>
+            `
+              )
+              .join('')}
           </div>
-        `);
+        </div>
+      `);
 
         $mobileContent.append($section);
       }

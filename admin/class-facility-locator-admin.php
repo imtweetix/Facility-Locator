@@ -101,11 +101,14 @@ class Facility_Locator_Admin
             wp_enqueue_media();
         }
 
+        // Get API key for localization
+        $api_key = get_option('facility_locator_google_maps_api_key', '');
+
         // Load Google Maps and facility form script only on facility pages
         if ($current_screen && $this->is_facility_form_page($current_screen)) {
-            $api_key = get_option('facility_locator_google_maps_api_key', '');
 
             if (!empty($api_key)) {
+                // Enqueue facility form script first
                 wp_enqueue_script(
                     $this->plugin_name . '-facility-form',
                     FACILITY_LOCATOR_URL . 'admin/js/facility-locator-facility-form.js',
@@ -123,6 +126,7 @@ class Facility_Locator_Admin
                     false
                 );
 
+                // Enqueue Google Maps with proper callback
                 $google_maps_url = add_query_arg(array(
                     'key' => $api_key,
                     'libraries' => 'places',
@@ -135,7 +139,7 @@ class Facility_Locator_Admin
                     $google_maps_url,
                     array($this->plugin_name . '-facility-form'),
                     null,
-                    false
+                    true // Load in footer
                 );
             } else {
                 // Still enqueue image gallery script even without Google Maps
@@ -146,19 +150,16 @@ class Facility_Locator_Admin
                     $this->version,
                     false
                 );
-
-                add_action('admin_notices', function () {
-                    echo '<div class="notice notice-error"><p><strong>Facility Locator:</strong> Google Maps API key is missing. Please add it in <a href="' . admin_url('admin.php?page=facility-locator-settings') . '">Settings</a>.</p></div>';
-                });
             }
         }
 
-        // Localize script
+        // Localize script with proper API key check
         wp_localize_script($this->plugin_name, 'facilityLocator', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('facility_locator_nonce'),
-            'hasApiKey' => !empty($api_key ?? ''),
+            'hasApiKey' => !empty($api_key),
             'currentScreen' => $current_screen ? $current_screen->id : '',
+            'googleMapsApiKey' => !empty($api_key) ? $api_key : '',
         ));
     }
 
@@ -358,7 +359,71 @@ class Facility_Locator_Admin
         include FACILITY_LOCATOR_PATH . 'admin/partials/facility-locator-admin-settings.php';
     }
 
+    /**
+     * AJAX handler for saving/updating a facility
+     */
+    public function ajax_save_facility()
+    {
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
 
+        if (!defined('DOING_AJAX') || !DOING_AJAX) {
+            wp_send_json_error('Not an AJAX request');
+            return;
+        }
+
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'facility_locator_nonce')) {
+            wp_send_json_error('Invalid nonce');
+            return;
+        }
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+            return;
+        }
+
+        // Validate required fields
+        if (empty($_POST['name']) || empty($_POST['address']) || empty($_POST['lat']) || empty($_POST['lng'])) {
+            wp_send_json_error('Name, address, and location coordinates are required');
+            return;
+        }
+
+        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+        $data = $_POST;
+
+        try {
+            if ($id > 0) {
+                // Update existing facility
+                $result = $this->facilities->update_facility($id, $data);
+                if ($result) {
+                    do_action('facility_locator_facility_saved', $id);
+                    wp_send_json_success(array(
+                        'id' => $id,
+                        'message' => 'Facility updated successfully',
+                    ));
+                } else {
+                    wp_send_json_error('Failed to update facility');
+                }
+            } else {
+                // Create new facility
+                $result = $this->facilities->add_facility($data);
+                if ($result && is_numeric($result)) {
+                    do_action('facility_locator_facility_saved', $result);
+                    wp_send_json_success(array(
+                        'id' => $result,
+                        'message' => 'Facility created successfully',
+                    ));
+                } else {
+                    wp_send_json_error('Failed to create facility');
+                }
+            }
+        } catch (Exception $e) {
+            wp_send_json_error('Database error: ' . $e->getMessage());
+        }
+
+        wp_die();
+    }
 
     /**
      * AJAX handler for deleting a facility

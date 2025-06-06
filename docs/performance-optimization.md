@@ -7,24 +7,28 @@ This guide covers the performance optimizations implemented in the Facility Loca
 ## Performance Features Implemented
 
 ### 1. External Asset Management
+
 - **CSS externalization**: All inline styles moved to external files
 - **JavaScript externalization**: All inline scripts moved to external files
 - **Minification support**: Build script for creating minified versions
 - **Asset versioning**: Cache busting with version numbers
 
 ### 2. Multi-Layer Caching System
+
 - **Object cache**: Fast in-memory caching (Redis/Memcached compatible)
 - **Transient cache**: Database-backed persistent caching
 - **Query result caching**: Database query results cached
 - **Template caching**: Rendered templates cached when possible
 
 ### 3. Database Optimizations
+
 - **Indexes added**: Proper indexing for fast queries
 - **Query optimization**: Efficient SQL queries with proper joins
 - **Lazy loading**: Taxonomy objects loaded only when needed
 - **Batch operations**: Multiple operations combined for efficiency
 
 ### 4. Frontend Optimizations
+
 - **Lazy script loading**: Scripts loaded only when needed
 - **Image optimization**: Carousel images with lazy loading
 - **Map clustering**: Marker clustering for better map performance
@@ -43,6 +47,7 @@ php build/minify.php
 ```
 
 This creates minified versions of all CSS and JS files:
+
 - `admin/css/facility-locator-admin.min.css`
 - `admin/js/facility-locator-admin.min.js`
 - `admin/js/facility-locator-facility-form.min.js`
@@ -83,6 +88,7 @@ define('WP_CACHE', true);
 ### Step 4: Configure Server-Level Caching
 
 #### Apache (.htaccess)
+
 ```apache
 # Enable GZIP compression
 <IfModule mod_deflate.c>
@@ -101,6 +107,7 @@ define('WP_CACHE', true);
 ```
 
 #### Nginx
+
 ```nginx
 # GZIP compression
 gzip on;
@@ -118,6 +125,7 @@ location ~* \.(css|js)$ {
 ### Automatic Cache Clearing
 
 The plugin automatically clears relevant caches when:
+
 - Facilities are added, updated, or deleted
 - Taxonomies are modified
 - Settings are changed
@@ -169,6 +177,7 @@ echo "Transients count: " . $stats['transients_count'];
 ### Automatic Optimizations
 
 The cache manager automatically:
+
 - Adds missing database indexes
 - Optimizes table structure
 - Cleans up expired transients
@@ -259,6 +268,7 @@ Check logs for cache operations and performance metrics.
 ### Automated Maintenance
 
 The plugin includes automated daily maintenance:
+
 - Clear expired transients
 - Optimize database indexes
 - Warm up critical caches
@@ -270,6 +280,7 @@ This runs automatically via WordPress cron.
 ### Custom Object Cache
 
 For high-traffic sites, consider:
+
 - Redis with persistent connections
 - Memcached with connection pooling
 - Custom cache key strategies
@@ -277,6 +288,7 @@ For high-traffic sites, consider:
 ### Database Partitioning
 
 For very large datasets:
+
 - Consider table partitioning by location
 - Implement data archiving for old facilities
 - Use read replicas for heavy queries
@@ -290,12 +302,14 @@ For very large datasets:
 ## Support and Updates
 
 When updating the plugin:
+
 1. Clear all caches after updates
 2. Re-run minification script
 3. Test performance in staging
 4. Monitor for any degradation
 
 For performance-related issues, provide:
+
 - Cache statistics
 - Database query logs
 - Server configuration details

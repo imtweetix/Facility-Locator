@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Build script for minifying CSS and JavaScript files
  * Run this before production deployment
@@ -13,64 +14,68 @@ $build_dir = __DIR__;
 // Files to minify
 $css_files = [
     'admin/css/facility-locator-admin.css',
-    'public/css/facility-locator-public.css',
-    'public/css/facility-locator-frontend.css'
+    'admin/css/facility-locator-image-gallery.css',
+    'public/css/facility-locator-public.css'
 ];
 
 $js_files = [
     'admin/js/facility-locator-admin.js',
     'admin/js/facility-locator-facility-form.js',
+    'admin/js/facility-locator-image-gallery.js',
     'public/js/facility-locator-public.js'
 ];
 
 /**
  * Simple CSS minifier
  */
-function minify_css($css) {
+function minify_css($css)
+{
     // Remove comments
     $css = preg_replace('/\/\*[\s\S]*?\*\//', '', $css);
-    
+
     // Remove whitespace
     $css = preg_replace('/\s+/', ' ', $css);
-    
+
     // Remove unnecessary spaces around specific characters
     $css = preg_replace('/\s*([{}:;,>+~])\s*/', '$1', $css);
-    
+
     // Remove trailing semicolon before closing brace
     $css = preg_replace('/;(})/', '$1', $css);
-    
+
     // Remove empty rules
     $css = preg_replace('/[^{}]+\{\s*\}/', '', $css);
-    
+
     return trim($css);
 }
 
 /**
  * Simple JavaScript minifier
  */
-function minify_js($js) {
+function minify_js($js)
+{
     // Remove single-line comments (but preserve URLs)
     $js = preg_replace('/(?<!:)\/\/.*$/m', '', $js);
-    
+
     // Remove multi-line comments
     $js = preg_replace('/\/\*[\s\S]*?\*\//', '', $js);
-    
+
     // Remove unnecessary whitespace
     $js = preg_replace('/\s+/', ' ', $js);
-    
+
     // Remove spaces around operators and punctuation
     $js = preg_replace('/\s*([=+\-*\/&|!<>{}();,:])\s*/', '$1', $js);
-    
+
     // Remove trailing semicolons before closing braces
     $js = preg_replace('/;(})/', '$1', $js);
-    
+
     return trim($js);
 }
 
 /**
  * Create backup of original file
  */
-function create_backup($file_path) {
+function create_backup($file_path)
+{
     $backup_path = $file_path . '.backup';
     if (!file_exists($backup_path)) {
         copy($file_path, $backup_path);
@@ -81,26 +86,27 @@ function create_backup($file_path) {
 /**
  * Process CSS files
  */
-function process_css_files($files, $root_dir) {
+function process_css_files($files, $root_dir)
+{
     foreach ($files as $file) {
         $file_path = $root_dir . '/' . $file;
         $min_path = str_replace('.css', '.min.css', $file_path);
-        
+
         if (file_exists($file_path)) {
             echo "Processing CSS: " . $file . "\n";
-            
+
             $content = file_get_contents($file_path);
             $original_size = strlen($content);
-            
+
             $minified = minify_css($content);
             $minified_size = strlen($minified);
-            
+
             // Add header comment
             $header = "/* Facility Locator - Minified CSS - " . date('Y-m-d H:i:s') . " */\n";
             $minified = $header . $minified;
-            
+
             file_put_contents($min_path, $minified);
-            
+
             $savings = round((($original_size - $minified_size) / $original_size) * 100, 1);
             echo "  Original: " . number_format($original_size) . " bytes\n";
             echo "  Minified: " . number_format($minified_size) . " bytes\n";
@@ -115,26 +121,27 @@ function process_css_files($files, $root_dir) {
 /**
  * Process JavaScript files
  */
-function process_js_files($files, $root_dir) {
+function process_js_files($files, $root_dir)
+{
     foreach ($files as $file) {
         $file_path = $root_dir . '/' . $file;
         $min_path = str_replace('.js', '.min.js', $file_path);
-        
+
         if (file_exists($file_path)) {
             echo "Processing JS: " . $file . "\n";
-            
+
             $content = file_get_contents($file_path);
             $original_size = strlen($content);
-            
+
             $minified = minify_js($content);
             $minified_size = strlen($minified);
-            
+
             // Add header comment
             $header = "/* Facility Locator - Minified JS - " . date('Y-m-d H:i:s') . " */\n";
             $minified = $header . $minified;
-            
+
             file_put_contents($min_path, $minified);
-            
+
             $savings = round((($original_size - $minified_size) / $original_size) * 100, 1);
             echo "  Original: " . number_format($original_size) . " bytes\n";
             echo "  Minified: " . number_format($minified_size) . " bytes\n";
@@ -149,7 +156,8 @@ function process_js_files($files, $root_dir) {
 /**
  * Update WordPress hooks to use minified files in production
  */
-function create_production_config($root_dir) {
+function create_production_config($root_dir)
+{
     $config_content = "<?php
 /**
  * Production configuration for Facility Locator
@@ -188,12 +196,13 @@ function facility_locator_get_asset_url(\$asset_path, \$version = '1.0.0') {
 /**
  * Generate asset manifest for cache busting
  */
-function generate_asset_manifest($root_dir) {
+function generate_asset_manifest($root_dir)
+{
     $manifest = [];
-    
+
     // Scan for all CSS and JS files
     $asset_dirs = ['admin/css', 'admin/js', 'public/css', 'public/js'];
-    
+
     foreach ($asset_dirs as $dir) {
         $dir_path = $root_dir . '/' . $dir;
         if (is_dir($dir_path)) {
@@ -208,7 +217,7 @@ function generate_asset_manifest($root_dir) {
             }
         }
     }
-    
+
     $manifest_path = $root_dir . '/build/asset-manifest.json';
     file_put_contents($manifest_path, json_encode($manifest, JSON_PRETTY_PRINT));
     echo "Generated asset manifest: build/asset-manifest.json\n";
@@ -242,4 +251,3 @@ echo "1. Test the minified files in a staging environment\n";
 echo "2. Update your PHP classes to use facility_locator_get_asset_url() function\n";
 echo "3. Set FACILITY_LOCATOR_USE_MINIFIED to true in production\n";
 echo "4. Consider setting up automated builds with GitHub Actions or similar\n";
-?>

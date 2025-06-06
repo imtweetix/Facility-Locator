@@ -1,6 +1,7 @@
 /**
  * Enhanced Frontend JavaScript for Recovery.com + Google Maps style interface
  * Complete rewrite with proper jQuery implementation and ES6 features
+ * FIXED: Form submission filtering and filter bar synchronization
  */
 (($) => {
   'use strict';
@@ -388,11 +389,13 @@
   };
 
   /**
-   * Build a form column
+   * Build a form column with proper taxonomy mapping
    */
   const buildColumn = (column) => {
     const $column = $('<div>').addClass('facility-locator-column');
-    const fieldId = `column_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Use taxonomy type as field name if available, otherwise generate random ID
+    const fieldId = column.taxonomy || `column_${Math.random().toString(36).substr(2, 9)}`;
 
     if (column.header) {
       $column.append($('<h3>').text(column.header));
@@ -414,65 +417,83 @@
   };
 
   /**
-   * Build radio field
+   * Build radio field with proper taxonomy mapping
    */
   const buildRadioField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
-    if (column.options && Array.isArray(column.options)) {
-      column.options.forEach((option) => {
-        const optionId = `${fieldId}_${option.value}`;
-        const $option = $('<div>').addClass('facility-locator-field-option');
-
-        $option.append(
-          $('<input>').attr({
-            type: 'radio',
-            id: optionId,
-            name: fieldId,
-            value: option.value,
-          })
-        );
-
-        $option.append($('<label>').attr('for', optionId).text(option.label));
-
-        $container.append($option);
-      });
+    // Get options from taxonomy if specified, otherwise use manual options
+    let options = [];
+    if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
+      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
+    } else if (column.options && Array.isArray(column.options)) {
+      options = column.options;
     }
+
+    options.forEach((option) => {
+      const optionValue = option.id || option.value;
+      const optionLabel = option.name || option.label;
+      const optionId = `${fieldId}_${optionValue}`;
+
+      const $option = $('<div>').addClass('facility-locator-field-option');
+
+      $option.append(
+        $('<input>').attr({
+          type: 'radio',
+          id: optionId,
+          name: fieldId,
+          value: optionValue,
+        })
+      );
+
+      $option.append($('<label>').attr('for', optionId).text(optionLabel));
+
+      $container.append($option);
+    });
 
     return $container;
   };
 
   /**
-   * Build checkbox field
+   * Build checkbox field with proper taxonomy mapping
    */
   const buildCheckboxField = (column, fieldId) => {
     const $container = $('<div>').addClass('facility-locator-field-options');
 
-    if (column.options && Array.isArray(column.options)) {
-      column.options.forEach((option) => {
-        const optionId = `${fieldId}_${option.value}`;
-        const $option = $('<div>').addClass('facility-locator-field-option');
-
-        $option.append(
-          $('<input>').attr({
-            type: 'checkbox',
-            id: optionId,
-            name: `${fieldId}[]`,
-            value: option.value,
-          })
-        );
-
-        $option.append($('<label>').attr('for', optionId).text(option.label));
-
-        $container.append($option);
-      });
+    // Get options from taxonomy if specified, otherwise use manual options
+    let options = [];
+    if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
+      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
+    } else if (column.options && Array.isArray(column.options)) {
+      options = column.options;
     }
+
+    options.forEach((option) => {
+      const optionValue = option.id || option.value;
+      const optionLabel = option.name || option.label;
+      const optionId = `${fieldId}_${optionValue}`;
+
+      const $option = $('<div>').addClass('facility-locator-field-option');
+
+      $option.append(
+        $('<input>').attr({
+          type: 'checkbox',
+          id: optionId,
+          name: `${fieldId}[]`,
+          value: optionValue,
+        })
+      );
+
+      $option.append($('<label>').attr('for', optionId).text(optionLabel));
+
+      $container.append($option);
+    });
 
     return $container;
   };
 
   /**
-   * Build dropdown field
+   * Build dropdown field with proper taxonomy mapping
    */
   const buildDropdownField = (column, fieldId) => {
     const $select = $('<select>')
@@ -488,11 +509,20 @@
         .text(`Select ${column.header || 'Option'}`)
     );
 
-    if (column.options && Array.isArray(column.options)) {
-      column.options.forEach((option) => {
-        $select.append($('<option>').val(option.value).text(option.label));
-      });
+    // Get options from taxonomy if specified, otherwise use manual options
+    let options = [];
+    if (column.taxonomy && facilityLocator.availableTaxonomies[column.taxonomy]) {
+      options = facilityLocator.availableTaxonomies[column.taxonomy].items;
+    } else if (column.options && Array.isArray(column.options)) {
+      options = column.options;
     }
+
+    options.forEach((option) => {
+      const optionValue = option.id || option.value;
+      const optionLabel = option.name || option.label;
+
+      $select.append($('<option>').val(optionValue).text(optionLabel));
+    });
 
     return $select;
   };
@@ -570,33 +600,38 @@
   };
 
   /**
-   * Submit form and show main interface
+   * FIXED: Submit form and show main interface with proper filter processing
    */
   const submitForm = ($container, id) => {
     console.log('Submitting form for container:', id);
 
     const $form = $container.find('form');
     const formData = $form.serializeArray();
-    const data = {};
+    const processedData = {};
 
+    // Process form data and convert to taxonomy filters
     formData.forEach((field) => {
       if (field.name.endsWith('[]')) {
+        // Handle checkbox arrays
         const fieldName = field.name.slice(0, -2);
-        if (!data[fieldName]) {
-          data[fieldName] = [];
+        if (!processedData[fieldName]) {
+          processedData[fieldName] = [];
         }
-        data[fieldName].push(field.value);
+        processedData[fieldName].push(field.value);
       } else {
-        data[field.name] = field.value;
+        // Handle single values (radio, select)
+        if (field.value && field.value.trim() !== '') {
+          processedData[field.name] = [field.value]; // Convert to array for consistency
+        }
       }
     });
 
-    console.log('Form data collected:', data);
+    console.log('Form data processed:', processedData);
 
     // Close popup and show main interface
     const $popup = $container.find('.facility-locator-popup');
     $popup.fadeOut(300, () => {
-      showMainInterface($container, id, data);
+      showMainInterface($container, id, processedData);
     });
 
     $('body').css('overflow', 'auto');
@@ -619,10 +654,11 @@
   };
 
   /**
-   * Show main interface
+   * FIXED: Show main interface with proper filter initialization
    */
   const showMainInterface = ($container, id, formData = {}) => {
     console.log('Showing main interface for container:', id);
+    console.log('Form data received:', formData);
 
     // Hide CTA section
     const $cta = $container.find('.facility-locator-cta');
@@ -632,7 +668,7 @@
     const $mainInterface = $container.find('.facility-locator-main-interface');
     $mainInterface.addClass('active').fadeIn(300);
 
-    // Store initial form data as filters
+    // Store initial form data as filters - ensure proper format
     activeFilters[id] = { ...formData };
 
     console.log('Active filters set:', activeFilters[id]);
@@ -649,6 +685,8 @@
     const $cardsContainer = $container.find('.facility-cards-container');
     $cardsContainer.addClass('loading').html('<div class="loading-spinner"></div>');
 
+    console.log('Fetching facilities with filters:', activeFilters[id]);
+
     $.ajax({
       url: facilityLocator.ajaxUrl,
       type: 'POST',
@@ -662,6 +700,8 @@
 
         if (response.success) {
           facilitiesData[id] = response.data.facilities;
+
+          console.log('Facilities received:', response.data.facilities.length);
 
           renderFilterBar($container, id, response.data.filters);
           renderFacilityCards($container, id, response.data.facilities);
@@ -681,7 +721,7 @@
   };
 
   /**
-   * Render filter bar with Recovery.com styling
+   * FIXED: Render filter bar with pre-selected form choices
    */
   const renderFilterBar = ($container, id, filters) => {
     const $filterItems = $container.find('.filter-items');
@@ -736,6 +776,8 @@
 
     // Render mobile filter drawer
     renderMobileFilterDrawer($container, id, filters);
+
+    console.log('Filter bar rendered with pre-selected choices');
   };
 
   /**
@@ -804,7 +846,9 @@
     $cardsContainer.empty();
 
     if (!facilities || facilities.length === 0) {
-      $cardsContainer.html('<div class="no-results">No facilities found. Please adjust your search criteria.</div>');
+      $cardsContainer.html(
+        '<div class="no-results">No facilities found matching your criteria. Please adjust your search filters.</div>'
+      );
       return;
     }
 
@@ -1340,6 +1384,8 @@
 
     activeFilters[id] = filters;
 
+    console.log('Filters updated:', activeFilters[id]);
+
     // Update filter button states
     updateFilterButtonStates($container, id);
 
@@ -1372,14 +1418,16 @@
   };
 
   /**
-   * Check if filter is selected
+   * FIXED: Check if filter is selected - handle string/number ID comparison
    */
   const isFilterSelected = (id, taxonomyType, itemId) => {
-    return (
-      activeFilters[id] &&
-      activeFilters[id][taxonomyType] &&
-      activeFilters[id][taxonomyType].includes(itemId.toString())
-    );
+    if (!activeFilters[id] || !activeFilters[id][taxonomyType]) {
+      return false;
+    }
+
+    // Convert both to strings for comparison to handle ID type mismatches
+    const selectedValues = activeFilters[id][taxonomyType].map((val) => String(val));
+    return selectedValues.includes(String(itemId));
   };
 
   /**

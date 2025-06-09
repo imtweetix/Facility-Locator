@@ -43,9 +43,14 @@
                 <?php foreach ($facilities as $facility) : ?>
                     <tr data-id="<?php echo esc_attr($facility->id); ?>">
                         <td>
-                            <strong><?php echo esc_html($facility->name); ?></strong>
+                            <strong>
+                                <a href="<?php echo admin_url('admin.php?page=facility-locator-add-new&id=' . $facility->id); ?>"><?php echo esc_html($facility->name); ?></a>
+                            </strong>
                         </td>
-                        <td><?php echo esc_html($facility->address); ?></td>
+                        <td><?php
+                            echo esc_html($facility->address) . '<br>';
+                            echo '<strong>Latitude: </strong>' . esc_html($facility->lat) . '<br><strong>Longitude: </strong>' . esc_html($facility->lng);
+                            ?></td>
                         <td>
                             <?php
                             if (!empty($facility->levels_of_care_names)) {

@@ -1,31 +1,66 @@
-# WordPress specific files
-wp-config.php
-wp-content/uploads/
-wp-content/backup-db/
-wp-content/advanced-cache.php
-wp-content/wp-cache-config.php
-wp-content/cache/
-wp-content/backups/
-wp-content/upgrade/
-wp-content/blogs.dir/
+# ===================================================================
+# Facility Locator WordPress Plugin - GitHub .gitignore
+# ===================================================================
 
-# Plugin specific excludes
-*.log
-*.tmp
-*.temp
+# ===================================================================
+# BUILT ASSETS & DISTRIBUTION (Generated files - don't track)
+# ===================================================================
+dist/
+build/output/
+release/
+*.zip
+*.tar.gz
+*.rar
+minified/
+compressed/
+
+# ===================================================================
+# NODE.JS & NPM (Package managers and dependencies)
+# ===================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn-integrity/
+package-lock.json
+yarn.lock
+.pnpm-store/
+
+# ===================================================================
+# PHP DEPENDENCIES & COMPOSER
+# ===================================================================
+vendor/
+composer.lock
+composer.phar
+
+# ===================================================================
+# DEVELOPMENT TOOLS & CACHE
+# ===================================================================
+
+# Build tool caches
 .cache/
+.parcel-cache/
+.next/
+.nuxt/
+out/
+.sass-cache/
+.eslintcache
+.stylelintcache
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
+# Testing
+coverage/
+.nyc_output/
+.jest/
+tests/coverage/
+phpunit.xml
+.phpunit.result.cache
+clover.xml
+test-results/
 
-# IDE and editor files
+# ===================================================================
+# IDE & EDITOR FILES
+# ===================================================================
 .vscode/
 .idea/
 *.sublime-workspace
@@ -37,54 +72,64 @@ desktop.ini
 .project
 .settings/
 .buildpath
+*.code-workspace
 
-# Node.js and npm
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.yarn-integrity
-package-lock.json
-yarn.lock
+# ===================================================================
+# CLAUDE AI & AI TOOLS
+# ===================================================================
+.claude/
+.claude-instructions-*
+.ai/
+.anthropic/
+.openai/
+*.claude-session
+.cursor/
 
-# Build and compilation output
-dist/
-build/output/
-.cache/
-.parcel-cache/
-.next/
-out/
+# ===================================================================
+# OPERATING SYSTEM FILES
+# ===================================================================
 
-# Development and testing
-coverage/
-.nyc_output/
-.jest/
-tests/coverage/
-phpunit.xml
-.phpunit.result.cache
-clover.xml
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
 
-# Composer dependencies
-vendor/
-composer.lock
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
 
-# Environment and configuration files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.htaccess
+# Linux
+*~
+.directory
+.Trash-*
 
-# Logs and debug files
+# ===================================================================
+# LOGS & TEMPORARY FILES
+# ===================================================================
 *.log
 logs/
 debug.log
 error.log
 access.log
-
-# Temporary and backup files
+*.tmp
+*.temp
+.tmp/
+tmp/
 *~
 *.bak
 *.backup
@@ -92,16 +137,22 @@ access.log
 *.swo
 *.orig
 *.rej
-.tmp/
-tmp/
 
-# Release and distribution files
-release/
-*.zip
-*.tar.gz
-*.rar
+# ===================================================================
+# ENVIRONMENT & CONFIGURATION
+# ===================================================================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+config.local.php
+wp-config-local.php
 
-# Security and sensitive files
+# ===================================================================
+# SECURITY & SENSITIVE FILES
+# ===================================================================
 .aws/
 .azure/
 .gcp/
@@ -110,55 +161,151 @@ release/
 *.p12
 *.crt
 *.csr
+*.pfx
 secrets/
 private/
+auth.json
+.secrets
 
-# Database files
+# ===================================================================
+# DATABASE FILES
+# ===================================================================
 *.sql
 *.sqlite
+*.sqlite3
 *.db
+*.mdb
 
-# Documentation build files
-docs/_build/
-docs/.doctrees/
+# ===================================================================
+# PLUGIN DEVELOPMENT SPECIFIC
+# ===================================================================
 
-# WordPress.org SVN directory (if using)
-.wordpress-org/
-
-# Development tools configuration
-.eslintcache
-.stylelintcache
-.sass-cache/
-.postcssrc
-.browserslistrc
-
-# Plugin development specific
+# Development directories
 src/temp/
 dev-tools/
 .dev/
+.development/
 
-# Performance and optimization files
+# WordPress specific (if in WordPress root)
+wp-config.php
+wp-content/uploads/
+wp-content/backup-db/
+wp-content/advanced-cache.php
+wp-content/wp-cache-config.php
+wp-content/cache/
+wp-content/backups/
+wp-content/upgrade/
+wp-content/blogs.dir/
+
+# Performance files
 .optimize/
-minified/
-compressed/
+.htaccess.backup
 
-# Git specific (already tracked files)
-!.gitkeep
-!.gitignore
+# ===================================================================
+# DOCUMENTATION BUILD FILES
+# ===================================================================
+docs/_build/
+docs/.doctrees/
+site/
+_site/
 
-# Allow certain build files to be tracked
+# ===================================================================
+# LEGACY & DEPRECATED FILES
+# ===================================================================
+
+# Old build system files
+gulpfile.js
+gruntfile.js
+build/minify.php
+
+# Legacy JavaScript files
+*.legacy.js
+*.old.js
+
+# Legacy CSS files
+*.legacy.css
+*.old.css
+
+# Backup files from migrations
+*.backup.*
+*.old.*
+
+# ===================================================================
+# WHAT WE DO WANT TO TRACK
+# ===================================================================
+
+# Build configuration (these should be tracked)
+!webpack.config.js
+!package.json
+!.babelrc
+!.eslintrc.js
 !build/scripts/
-!build/webpack.config.js
 !build/postcss.config.js
 
-# Allow documentation
-!docs/**/*.md
-!README.md
+# Source files (development files)
+!src/
 
-# Allow WordPress.org assets if they exist
+# Documentation
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!LICENSE
+!docs/**/*.md
+
+# WordPress.org assets (if they exist)
 !.wordpress-org/assets/
 
-# Allow language files
+# Language files
 !languages/*.pot
 !languages/*.po
 !languages/*.mo
+
+# Templates and includes
+!templates/
+!includes/
+!admin/
+!public/
+
+# Git files themselves
+!.gitignore
+!.gitattributes
+
+# WordPress plugin files
+!*.php
+!readme.txt
+!uninstall.php
+
+# ===================================================================
+# ADDITIONAL SAFETY EXCLUDES
+# ===================================================================
+
+# Prevent accidental inclusion of large files
+*.mov
+*.mp4
+*.avi
+*.mkv
+*.wmv
+*.flv
+*.iso
+*.dmg
+
+# Prevent inclusion of compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.a
+
+# Prevent inclusion of archives (except intentional ones)
+*.7z
+*.bz2
+*.gz
+*.xz
+*.Z
+
+# Version control directories (in case of nested repos)
+.git/
+.svn/
+.hg/
+.bzr/

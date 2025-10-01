@@ -1,0 +1,85 @@
+{
+  "name": "facility-locator",
+  "version": "1.1.0",
+  "description": "A powerful WordPress plugin for creating interactive facility finders with advanced filtering, image galleries, and Google Maps integration.",
+  "main": "facility-locator.php",
+  "scripts": {
+    "dev": "webpack --mode development --watch",
+    "build": "webpack --mode production",
+    "build:analyze": "webpack --mode production --analyze",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint:js": "eslint src/**/*.js --fix",
+    "lint:css": "stylelint src/**/*.{css,scss} --fix",
+    "lint:php": "phpcs --standard=WordPress --colors --warning-severity=0 --extensions=php .",
+    "fix:php": "phpcbf --standard=WordPress --colors --warning-severity=0 --extensions=php .",
+    "dist": "npm run build && npm run release:prepare",
+    "release:prepare": "node build/scripts/release.js",
+    "release:zip": "node build/scripts/create-zip.js",
+    "clean": "rimraf dist/* release/*",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "wordpress",
+    "plugin",
+    "facility-locator",
+    "google-maps",
+    "directory",
+    "healthcare",
+    "recovery"
+  ],
+  "author": "Guardian Recovery",
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/guardian-recovery/facility-locator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/guardian-recovery/facility-locator/issues"
+  },
+  "homepage": "https://github.com/guardian-recovery/facility-locator#readme",
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "@wordpress/eslint-plugin": "^17.3.0",
+    "autoprefixer": "^10.4.16",
+    "babel-loader": "^9.1.3",
+    "clean-webpack-plugin": "^4.0.0",
+    "css-loader": "^6.8.1",
+    "cssnano": "^6.0.1",
+    "eslint": "^8.51.0",
+    "extract-text-webpack-plugin": "^3.0.2",
+    "file-loader": "^6.2.0",
+    "jest": "^29.7.0",
+    "mini-css-extract-plugin": "^2.7.6",
+    "postcss": "^8.4.31",
+    "postcss-loader": "^7.3.3",
+    "rimraf": "^5.0.5",
+    "sass": "^1.69.5",
+    "sass-loader": "^13.3.2",
+    "stylelint": "^15.11.0",
+    "stylelint-config-wordpress": "^17.0.0",
+    "terser-webpack-plugin": "^5.3.9",
+    "url-loader": "^4.1.1",
+    "webpack": "^5.89.0",
+    "webpack-bundle-analyzer": "^4.9.1",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {},
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/js/**/*.test.js"
+    ]
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,171 @@
+# Claude Instructions for Facility Locator Plugin
+
+## Automatic Semantic Versioning
+IMPORTANT: Always update the plugin version automatically after any change using semantic versioning:
+
+- **Patch version (X.X.+1)** = Bug fixes, small corrections, security patches
+- **Minor version (X.+1.0)** = New features, backward compatible additions, enhancements
+- **Major version (+1.0.0)** = Breaking changes, backward incompatible changes, major rewrites
+
+### How to update version:
+1. Edit `facility-locator.php`:
+   - Update the `Version:` field in the header comment (line 6)
+   - Update the `PLUGIN_VERSION` constant (line 20)
+2. Edit `package.json`:
+   - Update the `version` field to match (line 3)
+3. Edit `readme.txt`:
+   - Update the `Stable tag:` field (line 6)
+4. All four values must match exactly
+
+### Current version tracking:
+Check the current version in `facility-locator.php` before making changes.
+Current version: 1.0.0
+
+### Version update examples:
+- Fix duplicate columns → 1.0.0 → 1.0.1 (patch)
+- Add new shortcode parameter → 1.0.1 → 1.1.0 (minor)
+- Remove deprecated functions → 1.1.0 → 2.0.0 (major)
+- Security fix → 1.1.0 → 1.1.1 (patch)
+- Performance improvement → 1.1.1 → 1.1.2 (patch)
+- New admin feature → 1.1.2 → 1.2.0 (minor)
+
+### Automated version update command:
+Use this script to update all version numbers consistently:
+```bash
+npm run version:update -- 1.2.3
+```
+
+## Build and Release Process
+### Development workflow:
+1. Make changes to source files in `src/` directory
+2. Test changes in development environment
+3. Update version numbers using semantic versioning
+4. Run build process: `npm run build`
+5. Create distribution package: `npm run dist`
+6. Create release package: `npm run release:zip`
+
+### Required commands after changes:
+- **Development build**: `npm run dev` (for development with watch mode)
+- **Production build**: `npm run build` (minified assets for production)
+- **Distribution package**: `npm run dist` (creates production-ready files)
+- **Release package**: `npm run release:zip` (creates WordPress.org ready ZIP)
+
+### File structure for releases:
+- Development files stay in `src/`
+- Built files go to `dist/`
+- Release packages go to `release/`
+- Only production-ready files included in ZIP
+
+## Security Requirements
+### Critical security checks before any release:
+1. **Input Validation**: All user inputs must be sanitized
+2. **Output Escaping**: All outputs must be properly escaped
+3. **Nonce Verification**: All forms must include nonce verification
+4. **Capability Checks**: All admin functions must check user capabilities
+5. **SQL Injection Prevention**: Use prepared statements only
+6. **XSS Prevention**: Escape all dynamic content
+
+### Security checklist:
+- [ ] No direct database queries without $wpdb->prepare()
+- [ ] All $_POST/$_GET data sanitized
+- [ ] All outputs escaped with esc_html(), esc_attr(), esc_url()
+- [ ] Nonces verified for all form submissions
+- [ ] current_user_can() checks on admin functions
+- [ ] No eval() or similar dangerous functions
+- [ ] File upload restrictions in place
+- [ ] No hardcoded credentials or API keys
+
+## Code Quality Standards
+### WordPress Coding Standards:
+- Follow WordPress PHP Coding Standards
+- Use WordPress hooks and filters appropriately
+- Proper function and variable naming (snake_case)
+- Consistent code formatting and indentation
+- Comprehensive inline documentation
+
+### Performance Guidelines:
+- Cache expensive operations
+- Use transients for temporary data storage
+- Optimize database queries
+- Minify CSS/JS for production
+- Lazy load assets when possible
+- Use WordPress object caching when available
+
+### Modern PHP Requirements:
+- Use type declarations for function parameters
+- Add return type hints where appropriate
+- Use modern PHP syntax (7.2+)
+- Implement proper error handling with exceptions
+- Follow PSR standards where applicable
+
+## Testing Requirements
+### Before any version update:
+1. **Functionality Testing**: All features work as expected
+2. **Security Testing**: No vulnerabilities introduced
+3. **Performance Testing**: No performance regressions
+4. **Compatibility Testing**: Works with latest WordPress version
+5. **Cross-browser Testing**: Works in modern browsers
+
+### Automated testing:
+- Run `npm run test` for JavaScript tests
+- Run `npm run lint:php` for PHP coding standards
+- Run `npm run lint:js` for JavaScript linting
+- All tests must pass before release
+
+## Documentation Updates
+### Required documentation updates:
+1. Update `readme.txt` changelog section
+2. Update inline code documentation
+3. Update any relevant documentation files
+4. Update version numbers in all relevant files
+
+### Changelog format:
+```
+= X.X.X =
+**Release Date: YYYY-MM-DD**
+
+**New Features:**
+* Feature description
+
+**Improvements:**
+* Improvement description
+
+**Bug Fixes:**
+* Bug fix description
+
+**Security:**
+* Security improvement description
+```
+
+## Release Checklist
+### Pre-release validation:
+- [ ] Version numbers updated in all files
+- [ ] Changelog updated with changes
+- [ ] Security vulnerabilities addressed
+- [ ] Performance optimizations applied
+- [ ] Code quality standards met
+- [ ] Tests passing
+- [ ] Build process successful
+- [ ] ZIP package created and validated
+
+### Post-release actions:
+- [ ] Tag git commit with version number
+- [ ] Update WordPress.org plugin repository
+- [ ] Monitor for any immediate issues
+- [ ] Update documentation if needed
+
+## File Management Rules
+### Development vs Production:
+- Source files: `src/admin/`, `src/public/`
+- Built files: `dist/admin/`, `dist/public/`
+- WordPress requires: `admin/`, `public/` (use built versions)
+- Never edit files in `dist/` directly
+- Always work in `src/` and run build process
+
+### Asset Management:
+- CSS: Write in SCSS, compile to minified CSS
+- JavaScript: Write in ES6+, compile to browser-compatible JS
+- Images: Optimize for web, use appropriate formats
+- Fonts: Include only necessary weights and styles
+
+This instruction file ensures consistent development practices, proper version management, and maintains high code quality and security standards.

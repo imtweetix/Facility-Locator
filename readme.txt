@@ -3,7 +3,7 @@ Contributors: guardianrecovery
 Tags: map, facilities, locator, google maps, directory, healthcare, recovery, treatment centers
 Requires at least: 5.0
 Tested up to: 6.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -228,6 +228,52 @@ For support, please:
 10. **Custom Map Pins** - Support for custom map markers and branding
 
 == Changelog ==
+
+= 1.1.0 =
+**Release Date: 2024-12-19**
+
+**Major Security & Performance Update**
+
+**Security Improvements:**
+* Fixed critical SQL injection vulnerabilities in taxonomy filtering
+* Enhanced CSRF protection across all admin forms
+* Implemented comprehensive input validation and sanitization
+* Added rate limiting for public AJAX endpoints
+* Improved file upload security with strict validation
+* Enhanced error handling to prevent information disclosure
+
+**Performance Optimizations:**
+* Implemented modern build system with Webpack and SCSS compilation
+* Added intelligent multi-layer caching system
+* Optimized database queries with JSON operations and proper indexing
+* Introduced request batching and deduplication for AJAX calls
+* Added asset minification and optimization for production
+
+**Modern Development:**
+* Migrated to ES6+ JavaScript with modular architecture
+* Added TypeScript-style type declarations for PHP (7.2+)
+* Implemented dependency injection and service container pattern
+* Enhanced error handling with custom exceptions
+* Added comprehensive code validation and testing tools
+
+**Code Quality:**
+* Eliminated code duplication across admin and public interfaces
+* Refactored complex functions following single responsibility principle
+* Implemented WordPress coding standards compliance
+* Added automated linting and formatting tools
+* Enhanced accessibility support (WCAG 2.1 compliant)
+
+**Developer Experience:**
+* Added modern build tools (Webpack, Babel, PostCSS, ESLint)
+* Implemented automated release pipeline for WordPress.org
+* Enhanced .gitignore with comprehensive exclusions
+* Added detailed documentation and development guidelines
+* Implemented automated version management system
+
+**Breaking Changes:**
+* Minimum PHP version increased to 7.2
+* Updated JavaScript architecture (custom modifications may need adjustment)
+* Enhanced database schema with automatic migration
 
 = 1.0.0 =
 **Major Release - Complete Rewrite**

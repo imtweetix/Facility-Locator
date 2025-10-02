@@ -22,14 +22,30 @@ class ReleaseBuilder {
     ];
 
     this.excludePatterns = [
+      'src',
       'src/**/*',
+      'build',
       'build/**/*',
+      'tests',
       'tests/**/*',
+      'node_modules',
       'node_modules/**/*',
+      'vendor',
       'vendor/**/*',
+      'release',
+      'release/**/*',
+      'dist',
+      'dist/**/*',
+      '.git',
       '.git/**/*',
+      '.github',
       '.github/**/*',
+      '.vscode',
       '.vscode/**/*',
+      '.claude',
+      '.claude/**/*',
+      '.claude-instructions',
+      'git-cleanup-commands.md',
       '*.log',
       '.DS_Store',
       'Thumbs.db',
@@ -51,8 +67,9 @@ class ReleaseBuilder {
       this.cleanReleaseDirectory();
       this.createReleaseDirectory();
       this.copyReleaseFiles();
+      this.copyDistAssets();
       this.updatePluginVersion();
-      this.createZipArchive();
+      await this.createZipArchive();
       this.cleanup();
 
       console.log('✅ Release build completed successfully!');
@@ -90,9 +107,44 @@ class ReleaseBuilder {
 
   cleanReleaseDirectory() {
     console.log('🧹 Cleaning release directory...');
+    console.log('Release directory path:', this.releaseDir);
+
+    // Safety check: ensure we're not deleting the entire project
+    const releaseDirName = path.basename(this.releaseDir);
+    if (releaseDirName !== 'release') {
+      throw new Error(`Safety check failed: Expected to clean 'release' directory but got '${releaseDirName}'`);
+    }
+
+    // Additional safety check: ensure the release directory is within the project
+    const relativePath = path.relative(this.rootDir, this.releaseDir);
+    if (relativePath !== 'release') {
+      throw new Error(`Safety check failed: Release directory is not in expected location. Got: ${relativePath}`);
+    }
 
     if (fs.existsSync(this.releaseDir)) {
-      fs.rmSync(this.releaseDir, { recursive: true, force: true });
+      console.log('Release directory exists, removing...');
+      try {
+        // Use Windows command directly on Windows platform
+        if (process.platform === 'win32') {
+          execSync(`cmd /c "rmdir /s /q "${this.releaseDir}""`, { stdio: 'pipe' });
+          console.log('✅ Release directory cleaned using Windows cmd');
+        } else {
+          fs.rmSync(this.releaseDir, { recursive: true, force: true });
+          console.log('✅ Release directory cleaned using fs.rmSync');
+        }
+      } catch (error) {
+        console.log('Error cleaning release directory:', error.message);
+        // Fallback to Node.js method
+        try {
+          fs.rmSync(this.releaseDir, { recursive: true, force: true });
+          console.log('✅ Release directory cleaned using fallback method');
+        } catch (error2) {
+          console.log('Failed to clean with fallback:', error2.message);
+          throw error;
+        }
+      }
+    } else {
+      console.log('Release directory does not exist, nothing to clean');
     }
   }
 
@@ -107,12 +159,58 @@ class ReleaseBuilder {
     console.log('📋 Copying release files...');
 
     const targetDir = path.join(this.tempDir, 'facility-locator');
+    console.log('Target directory:', targetDir);
     fs.mkdirSync(targetDir, { recursive: true });
 
     // Copy all required files
+    console.log('Starting file copy process...');
     this.copyDirectory(this.rootDir, targetDir);
 
     console.log('✅ Files copied successfully');
+  }
+
+  copyDistAssets() {
+    console.log('📦 Copying production assets from dist/...');
+
+    const targetDir = path.join(this.tempDir, 'facility-locator');
+
+    // Copy admin assets
+    const adminCssSource = path.join(this.distDir, 'admin', 'css', 'facility-locator-admin.min.css');
+    const adminJsSource = path.join(this.distDir, 'admin', 'js', 'facility-locator-admin.min.js');
+    const adminCssTarget = path.join(targetDir, 'admin', 'css', 'facility-locator-admin.min.css');
+    const adminJsTarget = path.join(targetDir, 'admin', 'js', 'facility-locator-admin.min.js');
+
+    if (fs.existsSync(adminCssSource)) {
+      fs.mkdirSync(path.dirname(adminCssTarget), { recursive: true });
+      fs.copyFileSync(adminCssSource, adminCssTarget);
+      console.log('📁 Copied admin CSS');
+    }
+
+    if (fs.existsSync(adminJsSource)) {
+      fs.mkdirSync(path.dirname(adminJsTarget), { recursive: true });
+      fs.copyFileSync(adminJsSource, adminJsTarget);
+      console.log('📁 Copied admin JS');
+    }
+
+    // Copy public assets
+    const publicCssSource = path.join(this.distDir, 'public', 'css', 'facility-locator-public.min.css');
+    const publicJsSource = path.join(this.distDir, 'public', 'js', 'facility-locator-public.min.js');
+    const publicCssTarget = path.join(targetDir, 'public', 'css', 'facility-locator-public.min.css');
+    const publicJsTarget = path.join(targetDir, 'public', 'js', 'facility-locator-public.min.js');
+
+    if (fs.existsSync(publicCssSource)) {
+      fs.mkdirSync(path.dirname(publicCssTarget), { recursive: true });
+      fs.copyFileSync(publicCssSource, publicCssTarget);
+      console.log('📁 Copied public CSS');
+    }
+
+    if (fs.existsSync(publicJsSource)) {
+      fs.mkdirSync(path.dirname(publicJsTarget), { recursive: true });
+      fs.copyFileSync(publicJsSource, publicJsTarget);
+      console.log('📁 Copied public JS');
+    }
+
+    console.log('✅ Production assets copied successfully');
   }
 
   copyDirectory(src, dest) {
@@ -121,12 +219,17 @@ class ReleaseBuilder {
     for (const item of items) {
       const srcPath = path.join(src, item);
       const destPath = path.join(dest, item);
-      const stat = fs.statSync(srcPath);
+
+      // Get relative path for exclusion checking
+      const relativePath = path.relative(this.rootDir, srcPath);
 
       // Skip excluded patterns
-      if (this.shouldExclude(path.relative(this.rootDir, srcPath))) {
+      if (this.shouldExclude(relativePath)) {
+        console.log(`⏭️  Skipping excluded: ${relativePath}`);
         continue;
       }
+
+      const stat = fs.statSync(srcPath);
 
       if (stat.isDirectory()) {
         fs.mkdirSync(destPath, { recursive: true });
@@ -138,14 +241,35 @@ class ReleaseBuilder {
   }
 
   shouldExclude(relativePath) {
-    return this.excludePatterns.some(pattern => {
-      // Convert glob patterns to regex
-      const regexPattern = pattern
-        .replace(/\*\*/g, '.*')
-        .replace(/\*/g, '[^/]*')
-        .replace(/\?/g, '[^/]');
+    // Normalize path separators for cross-platform compatibility
+    const normalizedPath = relativePath.split(path.sep).join('/');
 
-      return new RegExp(`^${regexPattern}$`).test(relativePath);
+    // Additional safety check: Never copy release directory into itself
+    if (normalizedPath.startsWith('release/') || normalizedPath === 'release') {
+      return true;
+    }
+
+    return this.excludePatterns.some(pattern => {
+      // Handle exact matches first
+      if (pattern === normalizedPath) {
+        return true;
+      }
+
+      // Convert glob patterns to regex with proper escaping
+      if (pattern.includes('*')) {
+        // Escape dots that are not part of glob patterns
+        let regexPattern = pattern.replace(/\./g, '\\.');
+        // Convert glob patterns
+        regexPattern = regexPattern
+          .replace(/\*\*/g, '.*')
+          .replace(/\*/g, '[^/]*')
+          .replace(/\?/g, '[^/]');
+
+        const regex = new RegExp(`^${regexPattern}$`);
+        return regex.test(normalizedPath);
+      }
+
+      return false;
     });
   }
 
@@ -183,24 +307,32 @@ class ReleaseBuilder {
     return packageJson.version;
   }
 
-  createZipArchive() {
+  async createZipArchive() {
     console.log('📦 Creating ZIP archive...');
 
     try {
-      // Use native zip command if available, otherwise fall back to cross-platform solution
       const zipPath = path.join(this.releaseDir, 'facility-locator.zip');
       const facilityLocatorDir = path.join(this.tempDir, 'facility-locator');
 
-      // Try to use system zip command
+      // Try PowerShell Compress-Archive first (creates proper ZIP files)
       try {
-        execSync(`cd "${this.tempDir}" && zip -r "../facility-locator.zip" "facility-locator"`, {
+        execSync(`powershell -Command "Compress-Archive -Path '${facilityLocatorDir}\\*' -DestinationPath '${zipPath}' -Force"`, {
           stdio: 'pipe'
         });
-        console.log('✅ ZIP archive created using system zip command');
+        console.log('✅ ZIP archive created using PowerShell Compress-Archive');
       } catch (error) {
-        // Fallback to cross-platform solution
-        this.createZipArchiveFallback(facilityLocatorDir, zipPath);
-        console.log('✅ ZIP archive created using fallback method');
+        console.log('PowerShell failed, trying alternative methods...');
+        try {
+          // Try zip command if available
+          execSync(`cd "${this.tempDir}" && zip -r "../facility-locator.zip" "facility-locator"`, {
+            stdio: 'pipe'
+          });
+          console.log('✅ ZIP archive created using zip command');
+        } catch (error2) {
+          // Final fallback using Node.js archiver
+          await this.createZipArchiveFallback(facilityLocatorDir, zipPath);
+          console.log('✅ ZIP archive created using Node.js archiver');
+        }
       }
 
       // Verify zip file was created
@@ -217,15 +349,28 @@ class ReleaseBuilder {
   }
 
   createZipArchiveFallback(sourceDir, zipPath) {
-    // Simple fallback - could be enhanced with archiver library
-    console.log('Using fallback ZIP creation method...');
+    console.log('Using Node.js archiver library for ZIP creation...');
 
-    // This is a simplified version - in production you might want to use the 'archiver' npm package
-    execSync(`cd "${path.dirname(sourceDir)}" && tar -czf "${zipPath.replace('.zip', '.tar.gz')}" "${path.basename(sourceDir)}"`, {
-      stdio: 'pipe'
+    return new Promise((resolve, reject) => {
+      const archiver = require('archiver');
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Maximum compression
+      });
+
+      output.on('close', () => {
+        console.log(`Archive finalized: ${archive.pointer()} total bytes`);
+        resolve();
+      });
+
+      archive.on('error', (err) => {
+        reject(err);
+      });
+
+      archive.pipe(output);
+      archive.directory(sourceDir, 'facility-locator');
+      archive.finalize();
     });
-
-    console.log('Created .tar.gz archive as fallback');
   }
 
   cleanup() {
